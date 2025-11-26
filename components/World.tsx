@@ -313,9 +313,48 @@ const RealisticMushroom: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
     )
 }
 
-const SunFeature: React.FC<{ feature: EnvFeature, rainLevel?: number }> = ({ feature, rainLevel = 0 }) => {
-    const { setInteractiveHover } = useGameStore();
+const SunRainSystem: React.FC<{ count: number, radius: number }> = ({ count, radius }) => {
+    const mesh = useRef<THREE.InstancedMesh>(null);
+    const dummy = useMemo(() => new THREE.Object3D(), []);
+    const particles = useMemo(() => {
+        const temp = [];
+        for (let i = 0; i < count; i++) {
+            const r = Math.random() * radius;
+            const theta = Math.random() * Math.PI * 2;
+            const x = r * Math.cos(theta);
+            const z = r * Math.sin(theta);
+            const y = (Math.random() - 0.5) * 20; // Height range
+            temp.push({ x, y, z, speed: 0.05 + Math.random() * 0.1, scale: Math.random() });
+        }
+        return temp;
+    }, [count, radius]);
+
+    useFrame((state) => {
+        if (!mesh.current) return;
+        particles.forEach((particle, i) => {
+            // Move down
+            particle.y -= particle.speed;
+            if (particle.y < -10) particle.y = 10;
+
+            dummy.position.set(particle.x, particle.y, particle.z);
+            dummy.scale.setScalar(particle.scale);
+            dummy.updateMatrix();
+            mesh.current.setMatrixAt(i, dummy.matrix);
+        });
+        mesh.current.instanceMatrix.needsUpdate = true;
+    });
+
+    return (
+        <instancedMesh ref={mesh} args={[undefined, undefined, count]}>
+            <dodecahedronGeometry args={[0.1, 0]} />
+            <meshBasicMaterial color="#ffd700" transparent opacity={0.6} blending={THREE.AdditiveBlending} />
+        </instancedMesh>
+    );
+};
+
+const SunFeature: React.FC<{ feature: EnvFeature, rainLevel: number }> = ({ feature, rainLevel }) => {
     const [hover, setHover] = useState(false);
+    const { setInteractiveHover } = useGameStore();
 
     const handleOver = (e: any) => {
         e.stopPropagation();
@@ -323,11 +362,7 @@ const SunFeature: React.FC<{ feature: EnvFeature, rainLevel?: number }> = ({ fea
         setInteractiveHover(true);
         playSunHover();
     };
-    const handleOut = (e: any) => {
-        e.stopPropagation();
-        setHover(false);
-        setInteractiveHover(false);
-    };
+    const handleOut = (e: any) => { e.stopPropagation(); setHover(false); setInteractiveHover(false); };
 
     // Sun disappear logic
     const engulfment = Math.max(0, rainLevel - 6) / 14;
@@ -373,6 +408,9 @@ const SunFeature: React.FC<{ feature: EnvFeature, rainLevel?: number }> = ({ fea
             </mesh>
             <pointLight intensity={5 * opacity} distance={50} color="#ff0000" decay={2} />
             <Sparkles count={100} scale={3} size={20} speed={0.4 + engulfment} opacity={0.5 * opacity} color="#ffa500" />
+
+            {/* Sun Rain System - Golden Rain */}
+            <SunRainSystem count={200} radius={8} />
         </group>
     )
 }
