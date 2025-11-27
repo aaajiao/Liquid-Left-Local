@@ -24,6 +24,7 @@ export const Player: React.FC = () => {
     const coreRef = useRef<THREE.Mesh>(null);
     const shellMaterialRef = useRef<THREE.MeshPhysicalMaterial>(null);
     const auraRef = useRef<THREE.MeshBasicMaterial>(null);
+    const fresnelMaterialRef = useRef<THREE.ShaderMaterial>(null);
 
     const {
         cursorWorldPos, isMouseDown, interactionMode, updatePlayerPos, currentLevel, envFeatures,
@@ -98,6 +99,8 @@ export const Player: React.FC = () => {
             let targetOpacity = 1;
             let targetTransmission = 0.2;
             let targetRoughness = 0.3;
+            let targetMetalness = 0.1;
+            let targetThickness = 1.2;
             let coreScale = 1;
             let auraOpacity = 0.5;
 
@@ -117,6 +120,9 @@ export const Player: React.FC = () => {
                     // Roughness: Become Organic (0.4)
                     targetRoughness = THREE.MathUtils.lerp(shellMaterialRef.current.roughness, 0.4, delta * 2);
 
+                    // Metalness: Solid organic material
+                    targetMetalness = 0.1;
+
                     // Emissive: Green Glow
                     shellMaterialRef.current.emissive.lerp(new THREE.Color("#00ff00"), delta * 2);
                     shellMaterialRef.current.emissiveIntensity = 0.5;
@@ -132,13 +138,20 @@ export const Player: React.FC = () => {
                     const waterProgress = Math.min(Math.max((playerScale - 1) / 5, 0), 1);
 
                     // Transmission: 0.2 -> 1.0 (Fully clear water)
-                    targetTransmission = THREE.MathUtils.lerp(0.2, 0.98, waterProgress);
+                    targetTransmission = THREE.MathUtils.lerp(0.2, 1.0, waterProgress);
 
-                    // Roughness: 0.3 -> 0.0 (Perfectly smooth)
+                    // Roughness: 0.3 -> 0.0 (Perfectly smooth glass)
                     targetRoughness = THREE.MathUtils.lerp(0.3, 0.0, waterProgress);
 
-                    // Color: Fade to white/clear
-                    dynamicColor.current.lerp(new THREE.Color("#ffffff"), waterProgress);
+                    // Metalness: 0.1 -> 0.0 (Remove metallic reflection for transparency)
+                    targetMetalness = THREE.MathUtils.lerp(0.1, 0.0, waterProgress);
+
+                    // Thickness: Reduce for clearer transparency (avoid over-refraction)
+                    targetThickness = THREE.MathUtils.lerp(1.2, 0.3, waterProgress);
+
+                    // Color: Fade to very light cyan (pure white can look weird with transmission)
+                    const targetColor = new THREE.Color("#f0ffff");
+                    dynamicColor.current.lerp(targetColor, waterProgress);
                     shellMaterialRef.current.color.copy(dynamicColor.current);
 
                     // Core: Shrink to 0 so we can see through the body
@@ -148,13 +161,14 @@ export const Player: React.FC = () => {
                     // Note: We use lerp here to avoid conflict with Block Flash
                     if (blockFlashIntensity.current <= 0) {
                         shellMaterialRef.current.emissive.lerpColors(new THREE.Color(theme.emissive), new THREE.Color("#000000"), waterProgress);
+                        shellMaterialRef.current.emissiveIntensity = 0.4 * (1 - waterProgress);
                     }
-
-                    // Dynamic Thickness for refraction
-                    shellMaterialRef.current.thickness = 1.2 * playerScale;
 
                     // Aura: Fade out as it becomes water
                     auraOpacity = 0.5 * (1 - waterProgress);
+
+                    // CRITICAL: Enable transparency for transmission to work properly
+                    shellMaterialRef.current.transparent = true;
                 }
 
             }
@@ -194,11 +208,13 @@ export const Player: React.FC = () => {
             // Apply Physics Material Props
             shellMaterialRef.current.transmission = targetTransmission;
             shellMaterialRef.current.roughness = targetRoughness;
+            shellMaterialRef.current.metalness = targetMetalness;
+            shellMaterialRef.current.thickness = targetThickness;
 
             // Apply Opacity (Alpha Fade) logic
-            // If transmission is high (water), we usually want transparent=false to avoid depth issues, 
-            // unless we are actually fading out the object (Sun level).
-            if (targetOpacity < 0.99) {
+            // For WIND level with high transmission, keep transparent=true
+            // For other levels, only enable transparent when fading
+            if (targetOpacity < 0.99 || (currentLevel === 'WIND' && targetTransmission > 0.5)) {
                 shellMaterialRef.current.transparent = true;
                 shellMaterialRef.current.opacity = targetOpacity;
                 if (coreRef.current) {
@@ -217,6 +233,20 @@ export const Player: React.FC = () => {
             // Apply Aura
             if (auraRef.current) {
                 auraRef.current.opacity = auraOpacity;
+            }
+
+            // Apply Fresnel Effect (WIND Level Only)
+            if (fresnelMaterialRef.current && currentLevel === 'WIND') {
+                fresnelMaterialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+
+                // Fresnel intensity increases as player becomes more water-like
+                const waterProgress = Math.min(Math.max((playerScale - 1) / 5, 0), 1);
+                fresnelMaterialRef.current.uniforms.uFresnelIntensity.value = 0.5 + waterProgress * 1.5;
+
+                // Color shifts from golden to cyan as it becomes water
+                const startColor = new THREE.Color("#f4a460"); // Sandy/warm
+                const endColor = new THREE.Color("#00ffff"); // Cyan water
+                fresnelMaterialRef.current.uniforms.uFresnelColor.value.lerpColors(startColor, endColor, waterProgress);
             }
         }
 
@@ -457,6 +487,75 @@ export const Player: React.FC = () => {
                         ior={1.33} // Index of Refraction for Water
                     />
                 </mesh>
+                {/* Fresnel Glow Layer - WIND Level Only */}
+                {currentLevel === 'WIND' && (
+                    <mesh scale={1.05}>
+                        <sphereGeometry args={[0.4, 64, 64]} />
+                        <shaderMaterial
+                            ref={fresnelMaterialRef}
+                            transparent
+                            depthWrite={false}
+                            blending={THREE.AdditiveBlending}
+                            side={THREE.FrontSide}
+                            uniforms={{
+                                uTime: { value: 0 },
+                                uFresnelPower: { value: 3.0 },
+                                uFresnelIntensity: { value: 1.0 },
+                                uFresnelColor: { value: new THREE.Color("#f4a460") },
+                                uPulseSpeed: { value: 2.0 },
+                                uPulseAmplitude: { value: 0.3 }
+                            }}
+                            vertexShader={`
+                                varying vec3 vNormal;
+                                varying vec3 vViewPosition;
+                                varying vec2 vUv;
+                                
+                                void main() {
+                                    vUv = uv;
+                                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                                    vViewPosition = -mvPosition.xyz;
+                                    vNormal = normalize(normalMatrix * normal);
+                                    gl_Position = projectionMatrix * mvPosition;
+                                }
+                            `}
+                            fragmentShader={`
+                                uniform float uTime;
+                                uniform float uFresnelPower;
+                                uniform float uFresnelIntensity;
+                                uniform vec3 uFresnelColor;
+                                uniform float uPulseSpeed;
+                                uniform float uPulseAmplitude;
+                                
+                                varying vec3 vNormal;
+                                varying vec3 vViewPosition;
+                                varying vec2 vUv;
+                                
+                                void main() {
+                                    // Fresnel effect - bright at edges, transparent at center
+                                    vec3 viewDir = normalize(vViewPosition);
+                                    float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), uFresnelPower);
+                                    
+                                    // Pulsing animation
+                                    float pulse = sin(uTime * uPulseSpeed) * uPulseAmplitude + 1.0;
+                                    
+                                    // Vertical gradient for more organic feel
+                                    float verticalGradient = 0.7 + vUv.y * 0.3;
+                                    
+                                    // Combine effects
+                                    float alpha = fresnel * uFresnelIntensity * pulse * verticalGradient;
+                                    
+                                    // Slight chromatic shift at edges
+                                    vec3 color = uFresnelColor;
+                                    float edgeBoost = smoothstep(0.7, 1.0, fresnel);
+                                    color = mix(color, vec3(1.0, 1.0, 1.0), edgeBoost * 0.3);
+                                    
+                                    gl_FragColor = vec4(color, alpha);
+                                }
+                            `}
+                        />
+                    </mesh>
+                )}
+
                 {/* Core - Enhanced with emissive glow */}
                 <mesh ref={coreRef}>
                     <sphereGeometry args={[0.2, 32, 32]} />
