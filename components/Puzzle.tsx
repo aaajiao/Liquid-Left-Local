@@ -134,7 +134,7 @@ const NeuralPulseLine: React.FC<{ dist: number }> = ({ dist }) => {
                 uColor: { value: new THREE.Color("#E0FFFF") },
                 uAmp: { value: 1.0 },
                 uDist: { value: dist },
-                uOpacity: { value: 0.8 }
+                uOpacity: { value: 0.3 }
             },
             vertexShader: `
                 uniform float uTime;
@@ -167,12 +167,26 @@ const NeuralPulseLine: React.FC<{ dist: number }> = ({ dist }) => {
                 uniform vec3 uColor;
                 uniform float uOpacity;
                 uniform float uTime;
+                uniform float uDist;
                 varying vec2 vUv;
                 
                 void main() {
-                    // Pulse opacity
-                    float pulse = (sin(uTime * 4.0) + 1.0) * 0.5;
-                    float finalOpacity = uOpacity * (0.6 + pulse * 0.4);
+                    // Calculate phase based on position along the line
+                    float positionPhase = vUv.x * 3.14159 * 2.0; // 0 to 2π along the line
+                    
+                    // Create traveling wave of opacity
+                    float wave1 = sin(positionPhase * 2.0 - uTime * 3.0) * 0.5 + 0.5;
+                    float wave2 = sin(positionPhase * 1.5 + uTime * 2.0) * 0.5 + 0.5;
+                    
+                    // Combine waves for complex pattern
+                    float opacityWave = mix(wave1, wave2, 0.5);
+                    
+                    // Add global pulse
+                    float globalPulse = (sin(uTime * 1.5) + 1.0) * 0.5;
+                    
+                    // Final opacity: dramatic range from nearly invisible to bright
+                    // Base (0.1) + wave variation (0-0.9) gives 0.1 to 1.0 range
+                    float finalOpacity = uOpacity * (0.1 + opacityWave * 0.9) * (0.5 + globalPulse * 0.5);
                     
                     gl_FragColor = vec4(uColor, finalOpacity);
                 }
@@ -218,57 +232,6 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
         return new THREE.Quaternion().setFromRotationMatrix(m);
     }, [startV, endV]);
 
-    // Static geometry
-    const geometry = useMemo(() => {
-        const points = [];
-        const segments = 30;
-        for (let i = 0; i <= segments; i++) {
-            points.push(new THREE.Vector3(0, 0, (i / segments - 0.5) * dist));
-        }
-        const curve = new THREE.CatmullRomCurve3(points);
-        return new THREE.TubeGeometry(curve, 40, 0.02, 8, false);
-    }, [dist]);
-
-    // Shader material
-    const material = useMemo(() => {
-        return new THREE.ShaderMaterial({
-            uniforms: {
-                uTime: { value: 0 },
-                uColor: { value: new THREE.Color("#ffffff") },
-                uAmp: { value: 0.15 },
-                uDist: { value: dist }
-            },
-            vertexShader: `
-                uniform float uTime;
-                uniform float uAmp;
-                uniform float uDist;
-                varying vec2 vUv;
-                
-                void main() {
-                    vUv = uv;
-                    vec3 pos = position;
-                    
-                    // Calculate phase
-                    float phase = (pos.z + uDist / 2.0) * 0.5;
-                    
-                    // Wriggle logic
-                    pos.y += sin(uTime * 3.0 + phase) * uAmp;
-                    pos.x += cos(uTime * 2.5 + phase) * uAmp;
-                    
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform vec3 uColor;
-                void main() {
-                    gl_FragColor = vec4(uColor, 0.4);
-                }
-            `,
-            transparent: true,
-            depthWrite: false
-        });
-    }, [dist]);
-
     const emojisRef = useRef<THREE.Group>(null);
     const particlesRef = useRef<THREE.Group>(null);
 
@@ -276,10 +239,6 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
         const t = state.clock.elapsedTime;
         const baseAmp = 0.15;
         const amp = allConnected ? 0.3 : baseAmp;
-
-        // Update shader uniform
-        material.uniforms.uTime.value = t;
-        material.uniforms.uAmp.value = amp;
 
         // Animate Emojis to follow the wriggle (still CPU, but much fewer points)
         if (emojisRef.current) {
@@ -294,16 +253,23 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
             });
         }
 
-        // Animate Particles
+        // Animate Particles with individual pulsing
         if (particlesRef.current) {
             particlesRef.current.children.forEach((child, i) => {
                 const ratio = (i + 0.5) / particlesRef.current!.children.length;
                 const z = (ratio - 0.5) * dist;
                 const phase = (z + dist / 2) * 0.5;
 
+                // Position animation (same as before)
                 child.position.z = z;
                 child.position.y = Math.sin(t * 3 + phase) * amp;
                 child.position.x = Math.cos(t * 2.5 + phase) * amp;
+
+                // Individual pulsing scale (each particle has unique phase)
+                const pulsePhase = i * 0.7; // Offset each particle's pulse
+                const pulseScale = 0.5 + Math.sin(t * 2.5 + pulsePhase) * 0.5; // 0.0 to 1.0
+                const finalScale = 0.5 + pulseScale; // Range: 0.5 to 1.5
+                child.scale.setScalar(finalScale);
             });
         }
     });
@@ -314,8 +280,8 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
 
     return (
         <group position={mid} quaternion={quaternion}>
-            {/* Wriggling Bone Line (GPU) */}
-            <mesh geometry={geometry} material={material} rotation={[Math.PI / 2, 0, 0]} />
+            {/* Neural Pulse Line - primary connection visual */}
+            <NeuralPulseLine dist={dist} />
 
             {/* Floating Elements Group (CPU - kept for billboards) */}
             <group ref={emojisRef}>
@@ -338,11 +304,13 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
             <group ref={particlesRef}>
                 {Array.from({ length: numParticles }).map((_, i) => (
                     <mesh key={`particle-${i}`}>
-                        <sphereGeometry args={[0.05, 8, 8]} />
-                        <meshBasicMaterial
-                            color="#b0e0e6"
+                        <sphereGeometry args={[0.12, 16, 16]} />
+                        <meshStandardMaterial
+                            color="#00ffff"
+                            emissive="#00ffff"
+                            emissiveIntensity={0.5}
                             transparent
-                            opacity={0.4}
+                            opacity={0.8}
                         />
                     </mesh>
                 ))}

@@ -233,26 +233,33 @@ const generateConnectionEnv = () => {
         // --- Random Environment Generation ---
         // 60% chance to spawn a "Bone Fragment" platform near this node
         if (Math.random() < 0.6) {
-            const pScale = 1.5 + Math.random() * 3;
+            const boneType = Math.random() < 0.7 ? 'long' : 'rib'; // 70% long bone, 30% rib
+            const pScale = 0.8 + Math.random() * 1.2; // Smaller, more realistic
             env.push({
                 id: `plat-rnd-${i}`,
                 type: 'ORGANIC_PLATFORM',
                 // Position slightly below node to look like support structure
                 position: [pos[0] + (Math.random() - 0.5), Math.max(0.2, pos[1] - 1.0), pos[2] + (Math.random() - 0.5)],
-                scale: [pScale, 0.2 + Math.random() * 0.4, pScale],
-                color: '#fff0f5'
+                scale: [pScale, 0.5 + Math.random() * 1.0, pScale], // [radius, length multiplier, radius]
+                rotation: [0, Math.random() * Math.PI * 2, Math.random() * 0.3 - 0.15], // Random Y rotation, slight tilt
+                color: '#fff0f5',
+                data: { boneType }
             });
         }
     }
 
-    // Add some random floating debris for atmosphere
-    for (let j = 0; j < 5; j++) {
+    // Add floating bone debris for atmosphere
+    for (let j = 0; j < 10; j++) {  // Increased from 5 to 10
+        const boneType = Math.random() < 0.6 ? 'long' : 'rib';
+        const debrisScale = 0.3 + Math.random() * 0.5; // Smaller fragments
         env.push({
             id: `debris-${j}`,
             type: 'ORGANIC_PLATFORM',
             position: [(Math.random() - 0.5) * 15, 2 + Math.random() * 5, (Math.random() - 0.5) * 15],
-            scale: [0.5, 0.5, 0.5],
-            color: '#fffff0'
+            scale: [debrisScale, 0.4 + Math.random() * 0.8, debrisScale],
+            rotation: [Math.random() * Math.PI, Math.random() * Math.PI * 2, Math.random() * Math.PI],
+            color: '#fffff0',
+            data: { boneType }
         });
     }
 

@@ -83,6 +83,52 @@ const LakeBed: React.FC = () => (
     </mesh>
 )
 
+// --- BONE FRAGMENTS ---
+const LongBone: React.FC<{ length: number; radius: number }> = ({ length, radius }) => {
+    const jointRadius = radius * 1.3;
+    const shaftRadius = radius * 0.7;
+
+    return (
+        <group>
+            {/* Top Joint (Epiphysis) */}
+            <mesh position={[0, length / 2, 0]}>
+                <sphereGeometry args={[jointRadius, 12, 12]} />
+                <meshStandardMaterial color="#e8e4dc" roughness={0.8} metalness={0.1} flatShading />
+            </mesh>
+            {/* Shaft (Diaphysis) */}
+            <mesh position={[0, 0, 0]}>
+                <cylinderGeometry args={[shaftRadius, shaftRadius, length, 12]} />
+                <meshStandardMaterial color="#e8e4dc" roughness={0.8} metalness={0.1} flatShading />
+            </mesh>
+            {/* Bottom Joint (Epiphysis) */}
+            <mesh position={[0, -length / 2, 0]}>
+                <sphereGeometry args={[jointRadius, 12, 12]} />
+                <meshStandardMaterial color="#e8e4dc" roughness={0.8} metalness={0.1} flatShading />
+            </mesh>
+        </group>
+    );
+};
+
+const RibBone: React.FC<{ length: number; radius: number; curvature: number }> = ({ length, radius, curvature }) => {
+    const curve = useMemo(() => {
+        const start = new THREE.Vector3(0, 0, 0);
+        const mid = new THREE.Vector3(length * 0.5, 0, curvature);
+        const end = new THREE.Vector3(length, 0, 0);
+        return new THREE.QuadraticBezierCurve3(start, mid, end);
+    }, [length, curvature]);
+
+    const geometry = useMemo(() => {
+        return new THREE.TubeGeometry(curve, 16, radius, 8, false);
+    }, [curve, radius]);
+
+    return (
+        <mesh geometry={geometry}>
+            <meshStandardMaterial color="#e8e4dc" roughness={0.8} metalness={0.1} flatShading />
+        </mesh>
+    );
+};
+
+
 // --- WIND SYSTEM (Danmaku) ---
 const WindDanmakuSystem: React.FC = () => {
     const instanceRef = useRef<THREE.InstancedMesh>(null);
@@ -630,11 +676,19 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
 
     // --- Connection / Home ---
     if (feature.type === 'ORGANIC_PLATFORM') {
+        // Determine bone type from feature data or random
+        const boneType = feature.data?.boneType || (Math.random() < 0.6 ? 'long' : 'rib');
+        const length = feature.scale[1] * 3; // Convert scale to bone length
+        const radius = feature.scale[0] / 4; // Convert scale to bone radius
+
         return (
-            <mesh position={feature.position} receiveShadow>
-                <cylinderGeometry args={[feature.scale[0] / 2, feature.scale[0] / 2, feature.scale[1], 32]} />
-                <MeshDistortMaterial color={feature.color} distort={0.1} speed={1} />
-            </mesh>
+            <group position={feature.position} rotation={feature.rotation || [0, 0, 0]} receiveShadow castShadow>
+                {boneType === 'long' ? (
+                    <LongBone length={length} radius={radius} />
+                ) : (
+                    <RibBone length={length * 1.5} radius={radius * 0.5} curvature={length * 0.3} />
+                )}
+            </group>
         )
     }
     if (feature.type === 'LAKE') {
