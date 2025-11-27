@@ -78,38 +78,6 @@ const Chapter6NodeVisual: React.FC<{ connected: boolean }> = ({ connected }) => 
     );
 };
 
-const Vertebra: React.FC<{ index: number; zPos: number; isEven: boolean }> = ({ index, zPos, isEven }) => {
-    const groupRef = useRef<THREE.Group>(null);
-
-    useFrame((state) => {
-        if (groupRef.current) {
-            const t = state.clock.elapsedTime;
-            // Sync these constants with NeuralPulseLine!
-            // Phase logic: roughly zPos based
-            // Vertebra uses index to shift phase. 
-            // index approx increases by 1 for every 1.5 units.
-            const waveY = Math.sin(t * 2.5 + index * 0.5) * 0.15;
-            const waveX = Math.cos(t * 2.0 + index * 0.4) * 0.08;
-
-            groupRef.current.position.set(waveX, waveY, zPos);
-            groupRef.current.rotation.z = isEven ? waveY * 1.5 : Math.PI / 2 + waveY * 1.5;
-            groupRef.current.rotation.x = waveX;
-        }
-    });
-
-    return (
-        <group ref={groupRef}>
-            <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[0.35, 0.08, 8, 16]} />
-                <meshStandardMaterial color="#5F9EA0" transparent opacity={0.7} />
-            </mesh>
-            <mesh rotation={[0, Math.PI / 2, 0]}>
-                <torusGeometry args={[0.28, 0.04, 8, 16]} />
-                <meshStandardMaterial color="#B0E0E6" transparent opacity={0.5} />
-            </mesh>
-        </group>
-    );
-};
 
 const NeuralPulseLine: React.FC<{ dist: number }> = ({ dist }) => {
     const meshRef = useRef<THREE.Mesh>(null);
