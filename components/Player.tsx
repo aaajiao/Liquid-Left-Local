@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useLayoutEffect, useEffect } from 'react';
+import React, { useRef, useState, useLayoutEffect, useEffect, Suspense } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Line, Sparkles, Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
@@ -482,8 +482,10 @@ export const Player: React.FC = () => {
                 <Line points={[new THREE.Vector3(0, 0, 0), slingshotVector.clone().multiplyScalar(-1)]} color="#fff" lineWidth={4} transparent opacity={0.5} />
             )}
 
-            {/* Pa Thought Bubbles */}
-            <PaThoughtBubbles playerPos={position.current} theme={theme} />
+            {/* Pa Thought Bubbles - Wrapped in Suspense to prevent scene reload on font load */}
+            <Suspense fallback={null}>
+                <PaThoughtBubbles playerPos={position.current} theme={theme} />
+            </Suspense>
         </group>
     );
 };

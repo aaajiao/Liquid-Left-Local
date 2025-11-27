@@ -114,63 +114,89 @@ const Vertebra: React.FC<{ index: number; zPos: number; isEven: boolean }> = ({ 
 const NeuralPulseLine: React.FC<{ dist: number }> = ({ dist }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const { isLevelComplete } = useGameStore();
-    const ampRef = useRef(1.0); // Initialize at 1.0
 
-    // Create curve with control points along the Z axis
-    const curve = useMemo(() => {
+    // Static geometry created once
+    const geometry = useMemo(() => {
         const points = [];
-        const segments = 12; // Enough points for smooth snake curve
+        const segments = 50; // Higher resolution for shader
         for (let i = 0; i <= segments; i++) {
             points.push(new THREE.Vector3(0, 0, (i / segments - 0.5) * dist));
         }
-        return new THREE.CatmullRomCurve3(points);
+        const curve = new THREE.CatmullRomCurve3(points);
+        return new THREE.TubeGeometry(curve, 64, 0.03, 8, false);
+    }, [dist]);
+
+    // Shader material
+    const material = useMemo(() => {
+        return new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uColor: { value: new THREE.Color("#E0FFFF") },
+                uAmp: { value: 1.0 },
+                uDist: { value: dist },
+                uOpacity: { value: 0.8 }
+            },
+            vertexShader: `
+                uniform float uTime;
+                uniform float uAmp;
+                uniform float uDist;
+                varying vec2 vUv;
+                
+                void main() {
+                    vUv = uv;
+                    vec3 pos = position;
+                    
+                    // Calculate phase based on Z position
+                    float phase = (pos.z + uDist / 2.0) * 0.333;
+                    
+                    // Wriggle logic ported from CPU
+                    // p.y = Math.sin(t * speedY + phase) * 0.15 * amp;
+                    // p.x = Math.cos(t * speedX + phase * 0.8) * 0.08 * amp;
+                    
+                    float speedY = 2.5; // Base speed
+                    float speedX = 2.0;
+                    
+                    // Apply displacement
+                    pos.y += sin(uTime * speedY + phase) * 0.15 * uAmp;
+                    pos.x += cos(uTime * speedX + phase * 0.8) * 0.08 * uAmp;
+                    
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 uColor;
+                uniform float uOpacity;
+                uniform float uTime;
+                varying vec2 vUv;
+                
+                void main() {
+                    // Pulse opacity
+                    float pulse = (sin(uTime * 4.0) + 1.0) * 0.5;
+                    float finalOpacity = uOpacity * (0.6 + pulse * 0.4);
+                    
+                    gl_FragColor = vec4(uColor, finalOpacity);
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
     }, [dist]);
 
     useFrame((state, delta) => {
-        if (!meshRef.current) return;
-        const t = state.clock.elapsedTime;
+        if (meshRef.current) {
+            const mat = meshRef.current.material as THREE.ShaderMaterial;
+            mat.uniforms.uTime.value = state.clock.elapsedTime;
 
-        // Energy Surge Logic
-        // If incomplete, target multiplier is 2.0 (gentle writhe)
-        // If complete, target multiplier is 3.5 (violent energy surge/dragon)
-        const targetAmp = isLevelComplete ? 3.5 : 2.0;
-        ampRef.current = THREE.MathUtils.lerp(ampRef.current, targetAmp, delta * 0.5);
-        const amp = ampRef.current;
-
-        // Pulse opacity/color
-        const freq = isLevelComplete ? 8 : 4;
-        const pulse = (Math.sin(t * freq) + 1) * 0.5; // 0 to 1
-        const material = meshRef.current.material as THREE.MeshBasicMaterial;
-        material.opacity = 0.6 + pulse * 0.4;
-
-        // Update Curve Points
-        const points = curve.points;
-
-        // Slight speed up when excited
-        const speedY = isLevelComplete ? 4.0 : 2.5;
-        const speedX = isLevelComplete ? 3.5 : 2.0;
-
-        for (let i = 0; i < points.length; i++) {
-            const p = points[i];
-            // Current Z position determines phase
-            const phase = (p.z + dist / 2) * 0.333;
-
-            // Apply amplitude multiplier to base values (0.15, 0.08)
-            p.y = Math.sin(t * speedY + phase) * 0.15 * amp;
-            p.x = Math.cos(t * speedX + phase * 0.8) * 0.08 * amp;
+            // Energy Surge Logic
+            const targetAmp = isLevelComplete ? 3.5 : 2.0;
+            // Smoothly interpolate amplitude in uniform
+            mat.uniforms.uAmp.value = THREE.MathUtils.lerp(mat.uniforms.uAmp.value, targetAmp, delta * 0.5);
         }
-
-        // Rebuild geometry
-        if (meshRef.current.geometry) meshRef.current.geometry.dispose();
-        // Tube gets slightly thicker when surging
-        meshRef.current.geometry = new THREE.TubeGeometry(curve, 32, 0.03 + (isLevelComplete ? 0.02 : 0), 8, false);
     });
 
     return (
-        <mesh ref={meshRef}>
-            <tubeGeometry args={[curve, 32, 0.03, 8, false]} />
-            <meshBasicMaterial color="#E0FFFF" transparent opacity={0.8} blending={THREE.AdditiveBlending} toneMapped={false} />
-        </mesh>
+        <mesh ref={meshRef} geometry={geometry} material={material} />
     )
 }
 
@@ -183,20 +209,66 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
 
     // Check if all nodes connected
     const allConnected = nodes.every(n => n.connected);
-    const emojiScale = allConnected ? 4.0 : 2.0; // Larger sizes as requested
+    const emojiScale = allConnected ? 4.0 : 2.0;
 
-    // Curve for wriggling line
-    const curve = useMemo(() => {
+    const quaternion = useMemo(() => {
+        const m = new THREE.Matrix4();
+        const up = new THREE.Vector3(0, 1, 0);
+        m.lookAt(startV, endV, up);
+        return new THREE.Quaternion().setFromRotationMatrix(m);
+    }, [startV, endV]);
+
+    // Static geometry
+    const geometry = useMemo(() => {
         const points = [];
-        const segments = 10;
+        const segments = 30;
         for (let i = 0; i <= segments; i++) {
             points.push(new THREE.Vector3(0, 0, (i / segments - 0.5) * dist));
         }
-        return new THREE.CatmullRomCurve3(points);
+        const curve = new THREE.CatmullRomCurve3(points);
+        return new THREE.TubeGeometry(curve, 40, 0.02, 8, false);
     }, [dist]);
 
-    const meshRef = useRef<THREE.Mesh>(null);
-    // Refs for emojis and particles to animate them
+    // Shader material
+    const material = useMemo(() => {
+        return new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uColor: { value: new THREE.Color("#ffffff") },
+                uAmp: { value: 0.15 },
+                uDist: { value: dist }
+            },
+            vertexShader: `
+                uniform float uTime;
+                uniform float uAmp;
+                uniform float uDist;
+                varying vec2 vUv;
+                
+                void main() {
+                    vUv = uv;
+                    vec3 pos = position;
+                    
+                    // Calculate phase
+                    float phase = (pos.z + uDist / 2.0) * 0.5;
+                    
+                    // Wriggle logic
+                    pos.y += sin(uTime * 3.0 + phase) * uAmp;
+                    pos.x += cos(uTime * 2.5 + phase) * uAmp;
+                    
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 uColor;
+                void main() {
+                    gl_FragColor = vec4(uColor, 0.4);
+                }
+            `,
+            transparent: true,
+            depthWrite: false
+        });
+    }, [dist]);
+
     const emojisRef = useRef<THREE.Group>(null);
     const particlesRef = useRef<THREE.Group>(null);
 
@@ -205,26 +277,13 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
         const baseAmp = 0.15;
         const amp = allConnected ? 0.3 : baseAmp;
 
-        // Wriggle the line
-        if (meshRef.current) {
-            const points = curve.points;
-            for (let i = 0; i < points.length; i++) {
-                const p = points[i];
-                if (i === 0 || i === points.length - 1) continue;
+        // Update shader uniform
+        material.uniforms.uTime.value = t;
+        material.uniforms.uAmp.value = amp;
 
-                const phase = (p.z + dist / 2) * 0.5;
-                p.y = Math.sin(t * 3 + phase) * amp;
-                p.x = Math.cos(t * 2.5 + phase) * amp;
-            }
-            if (meshRef.current.geometry) meshRef.current.geometry.dispose();
-            meshRef.current.geometry = new THREE.TubeGeometry(curve, 20, 0.02, 8, false);
-        }
-
-        // Animate Emojis to follow the wriggle
+        // Animate Emojis to follow the wriggle (still CPU, but much fewer points)
         if (emojisRef.current) {
             emojisRef.current.children.forEach((child, i) => {
-                // Calculate position based on same logic as line points
-                // Child index maps to position along line
                 const ratio = (i + 1) / (emojisRef.current!.children.length + 1);
                 const z = (ratio - 0.5) * dist;
                 const phase = (z + dist / 2) * 0.5;
@@ -235,7 +294,7 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
             });
         }
 
-        // Animate Particles to follow the wriggle
+        // Animate Particles
         if (particlesRef.current) {
             particlesRef.current.children.forEach((child, i) => {
                 const ratio = (i + 0.5) / particlesRef.current!.children.length;
@@ -249,28 +308,17 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
         }
     });
 
-    const quaternion = useMemo(() => {
-        const m = new THREE.Matrix4();
-        const up = new THREE.Vector3(0, 1, 0);
-        m.lookAt(startV, endV, up);
-        return new THREE.Quaternion().setFromRotationMatrix(m);
-    }, [startV, endV]);
-
-    // Number of elements - Increased density
+    // Number of elements
     const numEmojis = Math.max(3, Math.floor(dist / 1.5));
     const numParticles = Math.floor(dist / 1.0);
 
     return (
         <group position={mid} quaternion={quaternion}>
-            {/* Wriggling Bone Line */}
-            <mesh ref={meshRef} rotation={[Math.PI / 2, 0, 0]}>
-                <tubeGeometry args={[curve, 20, 0.02, 8, false]} />
-                <meshBasicMaterial color="#ffffff" transparent opacity={0.4} />
-            </mesh>
+            {/* Wriggling Bone Line (GPU) */}
+            <mesh geometry={geometry} material={material} rotation={[Math.PI / 2, 0, 0]} />
 
-            {/* Floating Elements Group - Now separated for individual animation */}
+            {/* Floating Elements Group (CPU - kept for billboards) */}
             <group ref={emojisRef}>
-                {/* 💧 Emoji teardrops */}
                 {Array.from({ length: numEmojis }).map((_, i) => (
                     <Billboard key={`emoji-${i}`}>
                         <Text
@@ -288,7 +336,6 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
             </group>
 
             <group ref={particlesRef}>
-                {/* Small particles */}
                 {Array.from({ length: numParticles }).map((_, i) => (
                     <mesh key={`particle-${i}`}>
                         <sphereGeometry args={[0.05, 8, 8]} />
