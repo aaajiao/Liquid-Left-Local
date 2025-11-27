@@ -569,9 +569,10 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
         )
     }
     if (feature.type === 'WITHERED_LEAF') {
-        const { leafHealth, startDialogue, dryConversationStage } = useGameStore();
+        const { leafHealth, startDialogue, dryConversationStage, setInteractiveHover } = useGameStore();
         const ratio = leafHealth / 100;
         const [showText, setShowText] = useState(false);
+        const [hover, setHover] = useState(false);
 
         // Dry's dialogue based on health state and conversation stage
         const getDryDialogue = () => {
@@ -587,6 +588,25 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
                 // Healthy state - grateful
                 return "谢谢你，很高兴认识你这滴液体！";
             }
+        };
+
+        const handleOver = (e: any) => {
+            e.stopPropagation();
+            setShowText(true);
+            setHover(true);
+            setInteractiveHover(true);
+        };
+
+        const handleOut = (e: any) => {
+            e.stopPropagation();
+            setShowText(false);
+            setHover(false);
+            setInteractiveHover(false);
+        };
+
+        const handleClick = (e: any) => {
+            e.stopPropagation();
+            startDialogue('withered-leaf');
         };
 
         // Color: Brown -> Green
@@ -606,10 +626,11 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
 
         return (
             <group position={feature.position} scale={feature.scale} rotation={[-Math.PI / 3, 0, 0]}>
-                <group scale={[unfurl, 1, 1]}
-                    onPointerOver={() => setShowText(true)}
-                    onPointerOut={() => setShowText(false)}
-                    onClick={() => startDialogue('withered-leaf')}
+                <group
+                    scale={[unfurl * (hover ? 1.05 : 1), (hover ? 1.05 : 1), (hover ? 1.05 : 1)]}
+                    onPointerOver={handleOver}
+                    onPointerOut={handleOut}
+                    onClick={handleClick}
                 >
                     {/* Main Leaf Blade */}
                     <mesh receiveShadow castShadow>
@@ -650,13 +671,48 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
                             </Text>
                         </Billboard>
                     )}
-                </group>
 
-                {/* Healing Glow */}
-                {ratio > 0 && (
-                    <pointLight color="#32cd32" intensity={3 * ratio} distance={5} decay={2} position={[0, 0, 1]} />
-                )}
-                <Sparkles count={10 + Math.floor(ratio * 30)} scale={3} color={ratio > 0.5 ? "#00ff00" : "#d2691e"} size={ratio > 0.5 ? 6 : 3} speed={0.5 + ratio} opacity={0.6} />
+                    {/* Healing Glow - ALWAYS visible, enhanced on hover */}
+                    <pointLight
+                        color={ratio > 0.5 ? "#32cd32" : "#ff8c00"}
+                        intensity={hover ? (ratio > 0.3 ? 8 : 4) : (ratio > 0.3 ? 3 : 1.5)}
+                        distance={hover ? 10 : 6}
+                        decay={2}
+                        position={[0, 0, 0.5]}
+                    />
+
+                    {/* Magical Sparkles - Gradually fade out as leaf becomes healthy */}
+                    {(() => {
+                        // Don't render at all if health is 90% or above
+                        if (ratio >= 0.9) return null;
+
+                        // Calculate opacity based on health ratio
+                        let sparkleOpacity;
+                        if (ratio > 0.7) {
+                            // Linear fade from 70% to 90% health
+                            const fadeProgress = (0.9 - ratio) / 0.2;  // 1.0 at 70%, 0.0 at 90%
+                            sparkleOpacity = Math.max(0, (hover ? 1.0 : 0.7) * fadeProgress);
+                        } else {
+                            // Full opacity below 70%
+                            sparkleOpacity = hover ? 1.0 : 0.7;
+                        }
+
+                        // Safety check
+                        if (sparkleOpacity < 0.01) return null;
+
+                        return (
+                            <Sparkles
+                                position={[0, 0, 0]}
+                                count={hover ? Math.max(100, 60 + Math.floor(ratio * 60)) : Math.max(30, 10 + Math.floor(ratio * 30))}
+                                scale={hover ? 1.5 : 1}
+                                color={hover ? (ratio > 0.5 ? "#adff2f" : "#ffa500") : (ratio > 0.5 ? "#00ff00" : "#ff6347")}
+                                size={hover ? (ratio > 0.5 ? 15 : 12) : (ratio > 0.5 ? 6 : 4)}
+                                speed={hover ? 2.5 + ratio * 1.5 : 0.8 + ratio}
+                                opacity={sparkleOpacity}
+                            />
+                        );
+                    })()}
+                </group>
             </group>
         )
     }
