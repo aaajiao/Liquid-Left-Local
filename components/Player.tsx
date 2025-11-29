@@ -173,8 +173,11 @@ export const Player: React.FC = () => {
 
             }
             // -- SUN LEVEL DISSOLVE --
-            else if (currentLevel === 'SUN' && rainLevel > 0) {
-                targetOpacity = Math.max(0, 1 - (rainLevel / 10));
+            // Access rainLevel directly from store to ensure fresh value in useFrame loop
+            const currentRainLevel = useGameStore.getState().rainLevel;
+
+            if (currentLevel === 'SUN' && currentRainLevel > 0) {
+                targetOpacity = Math.max(0, 1 - (currentRainLevel / 10));
                 auraOpacity = 0.5 * targetOpacity;
                 shellMaterialRef.current.color.copy(dynamicColor.current); // standard update
             } else {
@@ -213,20 +216,39 @@ export const Player: React.FC = () => {
 
             // Apply Opacity (Alpha Fade) logic
             // For WIND level with high transmission, keep transparent=true
+            // For SUN level, always enable transparent to ensure smooth fade start
             // For other levels, only enable transparent when fading
-            if (targetOpacity < 0.99 || (currentLevel === 'WIND' && targetTransmission > 0.5)) {
-                shellMaterialRef.current.transparent = true;
+            const shouldBeTransparent = targetOpacity < 0.99 || (currentLevel === 'WIND' && targetTransmission > 0.5) || (currentLevel === 'SUN');
+
+            if (shouldBeTransparent) {
+                if (!shellMaterialRef.current.transparent) {
+                    shellMaterialRef.current.transparent = true;
+                    shellMaterialRef.current.needsUpdate = true; // Force update when switching
+                }
                 shellMaterialRef.current.opacity = targetOpacity;
+
                 if (coreRef.current) {
-                    (coreRef.current.material as THREE.MeshStandardMaterial).transparent = true;
-                    (coreRef.current.material as THREE.MeshStandardMaterial).opacity = targetOpacity;
+                    const coreMat = coreRef.current.material as THREE.MeshStandardMaterial;
+                    if (!coreMat.transparent) {
+                        coreMat.transparent = true;
+                        coreMat.needsUpdate = true;
+                    }
+                    coreMat.opacity = targetOpacity;
                 }
             } else {
-                shellMaterialRef.current.transparent = false;
+                if (shellMaterialRef.current.transparent) {
+                    shellMaterialRef.current.transparent = false;
+                    shellMaterialRef.current.needsUpdate = true;
+                }
                 shellMaterialRef.current.opacity = 1;
+
                 if (coreRef.current) {
-                    (coreRef.current.material as THREE.MeshStandardMaterial).transparent = false;
-                    (coreRef.current.material as THREE.MeshStandardMaterial).opacity = 1;
+                    const coreMat = coreRef.current.material as THREE.MeshStandardMaterial;
+                    if (coreMat.transparent) {
+                        coreMat.transparent = false;
+                        coreMat.needsUpdate = true;
+                    }
+                    coreMat.opacity = 1;
                 }
             }
 
@@ -464,6 +486,9 @@ export const Player: React.FC = () => {
         currentRenderScale.current = 1;
     }, [currentLevel]);
 
+    // Calculate fade opacity for React-controlled components (Sparkles)
+    const sunLevelOpacity = currentLevel === 'SUN' ? Math.max(0, 1 - (rainLevel / 10)) : 1;
+
     return (
         <group ref={groupRef}>
             <group ref={bodyGroupRef}>
@@ -566,7 +591,14 @@ export const Player: React.FC = () => {
                         toneMapped={false}
                     />
                 </mesh>
-                <Sparkles count={20} scale={1.2} size={4} speed={0.4} opacity={0.8} color={theme.sparkle} />
+                <Sparkles
+                    count={20}
+                    scale={1.2}
+                    size={4}
+                    speed={0.4}
+                    opacity={0.8 * sunLevelOpacity}
+                    color={theme.sparkle}
+                />
             </group>
 
             {currentLevel === 'PROLOGUE' && exitPos && (
@@ -575,7 +607,7 @@ export const Player: React.FC = () => {
                 </group>
             )}
 
-            <pointLight intensity={3} distance={6} color={theme.emissive} decay={2} />
+            <pointLight intensity={3 * sunLevelOpacity} distance={6} color={theme.emissive} decay={2} />
 
             {interactionMode === 'SLINGSHOT' && slingshotVector && (
                 <Line points={[new THREE.Vector3(0, 0, 0), slingshotVector.clone().multiplyScalar(-1)]} color="#fff" lineWidth={4} transparent opacity={0.5} />
