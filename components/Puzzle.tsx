@@ -86,7 +86,7 @@ const NeuralPulseLine: React.FC<{ dist: number }> = ({ dist }) => {
     // Static geometry created once
     const geometry = useMemo(() => {
         const points = [];
-        const segments = 50; // Higher resolution for shader
+        const segments = 80; // Fixed: increased from 50 to prevent buffer errors with 64 tubular segments
         for (let i = 0; i <= segments; i++) {
             points.push(new THREE.Vector3(0, 0, (i / segments - 0.5) * dist));
         }

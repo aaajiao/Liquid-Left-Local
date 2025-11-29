@@ -118,7 +118,7 @@ const RibBone: React.FC<{ length: number; radius: number; curvature: number }> =
     }, [length, curvature]);
 
     const geometry = useMemo(() => {
-        return new THREE.TubeGeometry(curve, 16, radius, 8, false);
+        return new THREE.TubeGeometry(curve, 32, radius, 8, false); // Fixed: increased from 16 to prevent buffer errors
     }, [curve, radius]);
 
     return (
@@ -353,8 +353,16 @@ const RealisticMushroom: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
                 <meshStandardMaterial color="#3e2723" transparent opacity={opacity} />
             </mesh>
 
-            {/* Magic Spores - Explode on dissolve */}
-            <Sparkles count={30 + dissolveFactor * 50} scale={2 + dissolveFactor * 4} color={hover ? "white" : "gold"} speed={1 + dissolveFactor} size={hover ? 6 : 3} position={[0, 1, 0]} opacity={opacity} />
+            {/* Magic Spores - Fixed count with dynamic opacity to prevent buffer errors */}
+            <Sparkles
+                count={80}
+                scale={2 + dissolveFactor * 4}
+                color={hover ? "white" : "gold"}
+                speed={1 + dissolveFactor}
+                size={hover ? 6 : 3}
+                position={[0, 1, 0]}
+                opacity={opacity * (0.3 + dissolveFactor * 0.7)}
+            />
         </group>
     )
 }
@@ -681,34 +689,38 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
                         position={[0, 0, 0.5]}
                     />
 
-                    {/* Magical Sparkles - Gradually fade out as leaf becomes healthy */}
+                    {/* Magical Sparkles - Fixed count with dynamic opacity to prevent buffer errors */}
                     {(() => {
                         // Don't render at all if health is 90% or above
                         if (ratio >= 0.9) return null;
 
-                        // Calculate opacity based on health ratio
-                        let sparkleOpacity;
+                        // Calculate base opacity based on health ratio
+                        let baseOpacity;
                         if (ratio > 0.7) {
                             // Linear fade from 70% to 90% health
                             const fadeProgress = (0.9 - ratio) / 0.2;  // 1.0 at 70%, 0.0 at 90%
-                            sparkleOpacity = Math.max(0, (hover ? 1.0 : 0.7) * fadeProgress);
+                            baseOpacity = Math.max(0, (hover ? 1.0 : 0.7) * fadeProgress);
                         } else {
                             // Full opacity below 70%
-                            sparkleOpacity = hover ? 1.0 : 0.7;
+                            baseOpacity = hover ? 1.0 : 0.7;
                         }
 
                         // Safety check
-                        if (sparkleOpacity < 0.01) return null;
+                        if (baseOpacity < 0.01) return null;
+
+                        // Simulate count variation with opacity: INVERTED - more sparkles when unhealthy
+                        const countSimulationOpacity = 1.0 - ratio * 0.8; // Range: 1.0 (sick) to 0.2 (healthy)
+                        const finalOpacity = baseOpacity * countSimulationOpacity;
 
                         return (
                             <Sparkles
                                 position={[0, 0, 0]}
-                                count={hover ? Math.max(100, 60 + Math.floor(ratio * 60)) : Math.max(30, 10 + Math.floor(ratio * 30))}
+                                count={120} // Fixed at maximum to prevent buffer reallocation
                                 scale={hover ? 1.5 : 1}
                                 color={hover ? (ratio > 0.5 ? "#adff2f" : "#ffa500") : (ratio > 0.5 ? "#00ff00" : "#ff6347")}
                                 size={hover ? (ratio > 0.5 ? 15 : 12) : (ratio > 0.5 ? 6 : 4)}
                                 speed={hover ? 2.5 + ratio * 1.5 : 0.8 + ratio}
-                                opacity={sparkleOpacity}
+                                opacity={finalOpacity}
                             />
                         );
                     })()}
