@@ -82,7 +82,7 @@ export const UI: React.FC = () => {
         <AnimatePresence mode='wait'>
             <motion.div key={`${currentLevel}-${text}`} initial={{ opacity: 0, filter: 'blur(10px)' }} animate={{ opacity: 1, filter: 'blur(0px)' }} exit={{ opacity: 0, filter: 'blur(10px)' }} transition={{ duration: 1.5 }}>
                 {/* Responsive Text: Mobile(lg) -> Tablet(xl) -> Desktop(2xl) */}
-                <p className="text-lg md:text-xl lg:text-2xl text-slate-800/80 font-medium leading-relaxed drop-shadow-sm h-16">{text}</p>
+                <p className="text-lg md:text-xl lg:text-2xl text-slate-800/80 font-medium leading-relaxed drop-shadow-xs h-16">{text}</p>
                 {isLevelComplete && currentLevel !== 'SUN' && (
                     <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={(e) => { e.stopPropagation(); handleNextLevel(); }} className="mt-6 md:mt-8 text-pink-500 border border-pink-300 px-4 py-1.5 md:px-6 md:py-2 text-sm md:text-base rounded-full hover:bg-pink-50 transition-colors">前往下一章 (Proceed)</motion.button>
                 )}

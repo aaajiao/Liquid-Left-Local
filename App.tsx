@@ -38,14 +38,14 @@ const CustomCursor: React.FC = () => {
     if (isTouch) return null;
 
     return (
-        <div className="fixed top-0 left-0 pointer-events-none z-[100]" style={{ transform: `translate3d(${pos.x}px, ${pos.y}px, 0)` }}>
+        <div className="fixed top-0 left-0 pointer-events-none z-100" style={{ transform: `translate3d(${pos.x}px, ${pos.y}px, 0)` }}>
             {/* Core Light */}
             <div className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-white transition-all duration-200 shadow-[0_0_10px_#fff]
             ${isMouseDown ? 'w-3 h-3 opacity-100' : 'w-4 h-4 opacity-90'}
         `} />
 
             {/* Outer Glow / Halo */}
-            <div className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-all duration-300 blur-sm
+            <div className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-all duration-300 blur-xs
             ${isMouseDown ? 'w-8 h-8 bg-cyan-300/40' : 'w-12 h-12 bg-pink-300/30'}
         `} />
 
