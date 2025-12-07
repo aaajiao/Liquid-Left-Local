@@ -18,6 +18,13 @@ export interface Translations {
         chinese: string;
         english: string;
     };
+    npc: {
+        witheredLeaf: {
+            withering: string[];
+            healing: string;
+            healthy: string;
+        };
+    };
 }
 
 export const translations: Record<Lang, Translations> = {

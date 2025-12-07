@@ -5,6 +5,7 @@ import { MeshDistortMaterial, Sparkles, Cloud, Stars, Text, Float, Billboard, In
 import * as THREE from 'three';
 import { useGameStore, EnvFeature } from '../store';
 import { playBubbleHover, playMushroomHover, playSunHover, playWindBlock, playWindDamage } from '../utils/audio';
+import { useI18n } from '../contexts/I18nContext';
 
 // Shared bone material - created once and reused across all bone meshes
 const BONE_MATERIAL = new THREE.MeshStandardMaterial({
@@ -588,23 +589,26 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
     }
     if (feature.type === 'WITHERED_LEAF') {
         const { leafHealth, startDialogue, dryConversationStage, setInteractiveHover } = useGameStore();
+        const { translations } = useI18n();
         const ratio = leafHealth / 100;
         const [showText, setShowText] = useState(false);
         const [hover, setHover] = useState(false);
 
         // Dry's dialogue based on health state and conversation stage
         const getDryDialogue = () => {
+            const leafDialogue = translations.npc.witheredLeaf;
             if (ratio < 0.3) {
                 // Withering state - dry wants to wither
-                if (dryConversationStage === 0) return "你别过来！";
-                if (dryConversationStage === 1) return "我想要被风干...";
-                return "等我风干了，我就可以变成一个标本";
+                const witheringLines = leafDialogue.withering;
+                if (dryConversationStage === 0) return witheringLines[0];
+                if (dryConversationStage === 1) return witheringLines[1];
+                return witheringLines[2];
             } else if (ratio < 0.7) {
                 // Healing state - conflicted
-                return "好痛...但我不需要液体";
+                return leafDialogue.healing;
             } else {
                 // Healthy state - grateful
-                return "谢谢你，很高兴认识你这滴液体！";
+                return leafDialogue.healthy;
             }
         };
 

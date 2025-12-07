@@ -86,5 +86,16 @@
         "language": "Language",
         "chinese": "中文",
         "english": "English"
+    },
+    "npc": {
+        "witheredLeaf": {
+            "withering": [
+                "Stay away!",
+                "I want to be dried by the wind...",
+                "Once I'm dried, I can become a specimen"
+            ],
+            "healing": "It hurts... but I don't need liquid",
+            "healthy": "Thank you, nice to meet you, little drop!"
+        }
     }
 }

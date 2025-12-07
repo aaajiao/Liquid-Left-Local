@@ -86,5 +86,16 @@
         "language": "语言",
         "chinese": "中文",
         "english": "English"
+    },
+    "npc": {
+        "witheredLeaf": {
+            "withering": [
+                "你别过来！",
+                "我想要被风干...",
+                "等我风干了，我就可以变成一个标本"
+            ],
+            "healing": "好痛...但我不需要液体",
+            "healthy": "谢谢你，很高兴认识你这滴液体！"
+        }
     }
 }
