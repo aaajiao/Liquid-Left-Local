@@ -44,13 +44,15 @@ export const LanguageSwitcher: React.FC = () => {
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300"
                 style={{
-                    background: 'rgba(255, 255, 255, 0.15)',
+                    background: 'rgba(255, 255, 255, 0.08)',
                     backdropFilter: 'blur(10px)',
                     WebkitBackdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.05)',
                 }}
-                whileHover={{ scale: 1.05 }}
+                initial={{ opacity: 0.3 }}
+                animate={{ opacity: isOpen ? 1 : 0.3 }}
+                whileHover={{ scale: 1.05, opacity: 1 }}
                 whileTap={{ scale: 0.95 }}
                 aria-label={translations.ui.language}
             >
@@ -78,8 +80,8 @@ export const LanguageSwitcher: React.FC = () => {
                         <button
                             onClick={() => handleSelect('zh')}
                             className={`w-full px-4 py-2 text-left text-sm transition-colors flex items-center gap-2 ${lang === 'zh'
-                                    ? 'text-pink-600 bg-white/20'
-                                    : 'text-slate-700 hover:bg-white/10'
+                                ? 'text-pink-600 bg-white/20'
+                                : 'text-slate-700 hover:bg-white/10'
                                 }`}
                         >
                             {lang === 'zh' && <span className="text-xs">✓</span>}
@@ -88,8 +90,8 @@ export const LanguageSwitcher: React.FC = () => {
                         <button
                             onClick={() => handleSelect('en')}
                             className={`w-full px-4 py-2 text-left text-sm transition-colors flex items-center gap-2 ${lang === 'en'
-                                    ? 'text-pink-600 bg-white/20'
-                                    : 'text-slate-700 hover:bg-white/10'
+                                ? 'text-pink-600 bg-white/20'
+                                : 'text-slate-700 hover:bg-white/10'
                                 }`}
                         >
                             {lang === 'en' && <span className="text-xs">✓</span>}

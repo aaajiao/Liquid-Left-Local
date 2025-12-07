@@ -43,33 +43,55 @@ export const UI: React.FC = () => {
   return (
     <>
       <div
-        className="absolute inset-0 pointer-events-none flex flex-col justify-between z-10 font-serif select-none p-4 md:p-6 lg:p-8"
+        className="absolute inset-0 pointer-events-none flex flex-col justify-between z-10 font-serif select-none p-3 md:p-6 lg:p-8"
         onClick={() => resumeAudio()}
         style={{
-          paddingTop: 'calc(1rem + env(safe-area-inset-top))',
-          paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))',
-          paddingLeft: 'calc(1rem + env(safe-area-inset-left))',
-          paddingRight: 'calc(1rem + env(safe-area-inset-right))',
+          paddingTop: 'calc(0.75rem + env(safe-area-inset-top))',
+          paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
+          paddingLeft: 'calc(0.75rem + env(safe-area-inset-left))',
+          paddingRight: 'calc(0.75rem + env(safe-area-inset-right))',
         }}
       >
+        {/* Chapter Title - Smaller on mobile, larger in landscape */}
         <div className="text-gray-600/60">
-          {/* Responsive Text: Mobile(xl) -> Tablet(xl) -> Desktop(2xl) */}
-          <h1 className="text-lg md:text-xl lg:text-2xl font-bold tracking-widest uppercase text-pink-900/50">
+          <h1 className="text-base md:text-xl lg:text-2xl font-bold tracking-widest uppercase text-pink-900/50">
             {title}
           </h1>
         </div>
 
-        {/* Refactored: 3-Tier Responsive padding and text sizes */}
-        <div className="w-full max-w-3xl px-2 md:px-4 text-center pointer-events-auto mx-auto mb-12 md:mb-16">
+        {/* Narrative Text Container - Responsive with landscape handling */}
+        <div className="w-full max-w-3xl px-2 md:px-4 text-center pointer-events-auto mx-auto mb-10 md:mb-16">
           <AnimatePresence mode='wait'>
-            <motion.div key={`${currentLevel}-${text}`} initial={{ opacity: 0, filter: 'blur(10px)' }} animate={{ opacity: 1, filter: 'blur(0px)' }} exit={{ opacity: 0, filter: 'blur(10px)' }} transition={{ duration: 1.5 }}>
-              {/* Responsive Text: Mobile(lg) -> Tablet(xl) -> Desktop(2xl) */}
-              <p className="text-lg md:text-xl lg:text-2xl text-slate-800/80 font-medium leading-relaxed drop-shadow-xs h-16">{text}</p>
+            <motion.div
+              key={`${currentLevel}-${text}`}
+              initial={{ opacity: 0, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, filter: 'blur(10px)' }}
+              transition={{ duration: 1.5 }}
+            >
+              {/* Narrative Text - Smaller on mobile portrait, moderate in landscape */}
+              <p className="text-base md:text-xl lg:text-2xl text-slate-800/80 font-medium leading-relaxed drop-shadow-xs min-h-[4rem] md:min-h-[4rem]">
+                {text}
+              </p>
               {isLevelComplete && currentLevel !== 'SUN' && (
-                <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={(e) => { e.stopPropagation(); handleNextLevel(); }} className="mt-6 md:mt-8 text-pink-500 border border-pink-300 px-4 py-1.5 md:px-6 md:py-2 text-sm md:text-base rounded-full hover:bg-pink-50 transition-colors">{translations.ui.proceed}</motion.button>
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  onClick={(e) => { e.stopPropagation(); handleNextLevel(); }}
+                  className="mt-4 md:mt-8 text-pink-500 border border-pink-300 px-4 py-1.5 md:px-6 md:py-2 text-sm md:text-base rounded-full hover:bg-pink-50 transition-colors"
+                >
+                  {translations.ui.proceed}
+                </motion.button>
               )}
               {currentLevel === 'SUN' && isLevelComplete && (
-                <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1, scale: 1.1 }} onClick={(e) => { e.stopPropagation(); resetGame(); }} className="mt-6 md:mt-8 text-blue-400 hover:text-blue-600 text-sm md:text-base">[ {translations.ui.rebirth} ]</motion.button>
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1, scale: 1.1 }}
+                  onClick={(e) => { e.stopPropagation(); resetGame(); }}
+                  className="mt-4 md:mt-8 text-blue-400 hover:text-blue-600 text-sm md:text-base"
+                >
+                  [ {translations.ui.rebirth} ]
+                </motion.button>
               )}
             </motion.div>
           </AnimatePresence>
