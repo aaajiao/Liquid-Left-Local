@@ -8,6 +8,8 @@ import { World } from './components/World';
 import { Player } from './components/Player';
 import { PuzzleManager } from './components/Puzzle';
 import { UI } from './components/UI';
+import { LanguageSwitcher } from './components/LanguageSwitcher';
+import { I18nProvider } from './contexts/I18nContext';
 
 const LEVEL_THEMES: Record<LevelType, { bg: string, fog: string }> = {
     PROLOGUE: { bg: '#2a0a10', fog: '#501020' },
@@ -231,24 +233,27 @@ const App: React.FC = () => {
     }, [startLevel]);
 
     return (
-        <div className="w-full h-screen bg-[#fdf4f5] relative overflow-hidden cursor-none">
-            <CustomCursor />
-            <UI />
-            <Canvas shadows dpr={[1, 2]} onContextMenu={(e) => e.preventDefault()}>
-                <Suspense fallback={null}>
-                    <DynamicBackground />
-                    <CameraController />
-                    <OrthographicCamera makeDefault position={[20, 20, 20]} zoom={40} near={-50} far={200} />
-                    <ambientLight intensity={0.6} color="#ffeaf0" />
-                    <spotLight position={[10, 20, 5]} angle={0.3} penumbra={1} intensity={2} castShadow color="#fff" />
-                    <Environment preset="sunset" blur={1} />
-                    <World />
-                    <PuzzleManager />
-                    <Player />
-                    <BakeShadows />
-                </Suspense>
-            </Canvas>
-        </div>
+        <I18nProvider>
+            <div className="w-full h-screen bg-[#fdf4f5] relative overflow-hidden cursor-none">
+                <CustomCursor />
+                <LanguageSwitcher />
+                <UI />
+                <Canvas shadows dpr={[1, 2]} onContextMenu={(e) => e.preventDefault()}>
+                    <Suspense fallback={null}>
+                        <DynamicBackground />
+                        <CameraController />
+                        <OrthographicCamera makeDefault position={[20, 20, 20]} zoom={40} near={-50} far={200} />
+                        <ambientLight intensity={0.6} color="#ffeaf0" />
+                        <spotLight position={[10, 20, 5]} angle={0.3} penumbra={1} intensity={2} castShadow color="#fff" />
+                        <Environment preset="sunset" blur={1} />
+                        <World />
+                        <PuzzleManager />
+                        <Player />
+                        <BakeShadows />
+                    </Suspense>
+                </Canvas>
+            </div>
+        </I18nProvider>
     );
 };
 export default App;
