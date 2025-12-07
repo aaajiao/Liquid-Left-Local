@@ -1,10 +1,18 @@
 
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, memo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { MeshDistortMaterial, Sparkles, Cloud, Stars, Text, Float, Billboard, Instance, Instances } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameStore, EnvFeature } from '../store';
 import { playBubbleHover, playMushroomHover, playSunHover, playWindBlock, playWindDamage } from '../utils/audio';
+
+// Shared bone material - created once and reused across all bone meshes
+const BONE_MATERIAL = new THREE.MeshStandardMaterial({
+    color: '#e8e4dc',
+    roughness: 0.8,
+    metalness: 0.1,
+    flatShading: true
+});
 
 const PhysicsPlane: React.FC = () => {
     const { setCursorWorldPos, setMouseDown, cancelDrag, interactionMode } = useGameStore();
@@ -86,32 +94,30 @@ const LakeBed: React.FC = () => (
 )
 
 // --- BONE FRAGMENTS ---
-const LongBone: React.FC<{ length: number; radius: number }> = ({ length, radius }) => {
+const LongBone: React.FC<{ length: number; radius: number }> = memo(({ length, radius }) => {
     const jointRadius = radius * 1.3;
     const shaftRadius = radius * 0.7;
 
     return (
         <group>
             {/* Top Joint (Epiphysis) */}
-            <mesh position={[0, length / 2, 0]}>
+            <mesh position={[0, length / 2, 0]} material={BONE_MATERIAL}>
                 <sphereGeometry args={[jointRadius, 12, 12]} />
-                <meshStandardMaterial color="#e8e4dc" roughness={0.8} metalness={0.1} flatShading />
             </mesh>
             {/* Shaft (Diaphysis) */}
-            <mesh position={[0, 0, 0]}>
+            <mesh position={[0, 0, 0]} material={BONE_MATERIAL}>
                 <cylinderGeometry args={[shaftRadius, shaftRadius, length, 12]} />
-                <meshStandardMaterial color="#e8e4dc" roughness={0.8} metalness={0.1} flatShading />
             </mesh>
             {/* Bottom Joint (Epiphysis) */}
-            <mesh position={[0, -length / 2, 0]}>
+            <mesh position={[0, -length / 2, 0]} material={BONE_MATERIAL}>
                 <sphereGeometry args={[jointRadius, 12, 12]} />
-                <meshStandardMaterial color="#e8e4dc" roughness={0.8} metalness={0.1} flatShading />
             </mesh>
         </group>
     );
-};
+});
+LongBone.displayName = 'LongBone';
 
-const RibBone: React.FC<{ length: number; radius: number; curvature: number }> = ({ length, radius, curvature }) => {
+const RibBone: React.FC<{ length: number; radius: number; curvature: number }> = memo(({ length, radius, curvature }) => {
     const curve = useMemo(() => {
         const start = new THREE.Vector3(0, 0, 0);
         const mid = new THREE.Vector3(length * 0.5, 0, curvature);
@@ -120,15 +126,14 @@ const RibBone: React.FC<{ length: number; radius: number; curvature: number }> =
     }, [length, curvature]);
 
     const geometry = useMemo(() => {
-        return new THREE.TubeGeometry(curve, 32, radius, 8, false); // Fixed: increased from 16 to prevent buffer errors
+        return new THREE.TubeGeometry(curve, 32, radius, 8, false);
     }, [curve, radius]);
 
     return (
-        <mesh geometry={geometry}>
-            <meshStandardMaterial color="#e8e4dc" roughness={0.8} metalness={0.1} flatShading />
-        </mesh>
+        <mesh geometry={geometry} material={BONE_MATERIAL} />
     );
-};
+});
+RibBone.displayName = 'RibBone';
 
 
 // --- WIND SYSTEM (Danmaku) ---
@@ -776,8 +781,8 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
     return <mesh position={feature.position} scale={feature.scale}><dodecahedronGeometry args={[0.5, 0]} /><meshStandardMaterial color={feature.color} /></mesh>
 }
 
-const Atmosphere: React.FC<{ level: string }> = ({ level }) => {
-    const { rainLevel } = useGameStore();
+const Atmosphere: React.FC<{ level: string }> = memo(({ level }) => {
+    const rainLevel = useGameStore((state) => state.rainLevel);
     return (
         <>
             {level === 'PROLOGUE' && <Cloud opacity={0.4} speed={0.1} bounds={[5, 2, 15]} color="#b03060" position={[0, 2, -5]} />}
@@ -800,4 +805,5 @@ const Atmosphere: React.FC<{ level: string }> = ({ level }) => {
             )}
         </>
     )
-}
+});
+Atmosphere.displayName = 'Atmosphere';
