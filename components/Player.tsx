@@ -55,6 +55,19 @@ export const Player: React.FC = () => {
     // Dynamic Color Logic for Name Chapter & Chewing
     const dynamicColor = useRef(new THREE.Color(theme.shell));
 
+    // Reusable color objects to avoid per-frame allocations
+    const tempStartCore = useRef(new THREE.Color());
+    const tempEndCore = useRef(new THREE.Color());
+    const tempStrainColor = useRef(new THREE.Color());
+    const tempBaseColor = useRef(new THREE.Color());
+    const tempTargetColor = useRef(new THREE.Color());
+    const tempLeafGreen = useRef(new THREE.Color("#32cd32"));
+    const tempBlack = useRef(new THREE.Color("#000000"));
+    const tempGreen = useRef(new THREE.Color("#00ff00"));
+    const tempCyan = useRef(new THREE.Color("#f0ffff"));
+    const tempFresnelStart = useRef(new THREE.Color("#f4a460"));
+    const tempFresnelEnd = useRef(new THREE.Color("#00ffff"));
+
     // Watch for block events to trigger visual flash
     useEffect(() => {
         if (lastBlockTime > 0) {
@@ -69,23 +82,25 @@ export const Player: React.FC = () => {
         if (currentLevel === 'NAME') {
             const progress = Math.min(fragmentsCollected / 5, 1);
             // Shell: White -> Deep Purple
-            dynamicColor.current.set('#ffffff').lerp(new THREE.Color('#4b0082'), progress);
+            dynamicColor.current.set('#ffffff').lerp(tempEndCore.current.set('#4b0082'), progress);
 
             // Core: Gold -> Neon Purple (High Visibility)
             if (coreRef.current) {
-                const startCore = new THREE.Color("#ffd700");
-                const endCore = new THREE.Color("#e0a0ff");
-                (coreRef.current.material as THREE.MeshStandardMaterial).color.lerpColors(startCore, endCore, progress);
+                tempStartCore.current.set("#ffd700");
+                tempEndCore.current.set("#e0a0ff");
+                (coreRef.current.material as THREE.MeshStandardMaterial).color.lerpColors(tempStartCore.current, tempEndCore.current, progress);
             }
         }
         else if (currentLevel === 'CHEWING') {
             // Squeeze Logic: Green -> Red/Bruised based on intensity
-            const strainColor = new THREE.Color("#c71585"); // Deep Pink/Red
-            const baseColor = new THREE.Color(theme.shell);
-            dynamicColor.current.copy(baseColor).lerp(strainColor, squeezeIntensity.current);
+            tempStrainColor.current.set("#c71585"); // Deep Pink/Red
+            tempBaseColor.current.set(theme.shell);
+            dynamicColor.current.copy(tempBaseColor.current).lerp(tempStrainColor.current, squeezeIntensity.current);
 
             if (coreRef.current) {
-                (coreRef.current.material as THREE.MeshStandardMaterial).color.lerpColors(new THREE.Color(theme.core), new THREE.Color("#ff4500"), squeezeIntensity.current);
+                tempStartCore.current.set(theme.core);
+                tempEndCore.current.set("#ff4500");
+                (coreRef.current.material as THREE.MeshStandardMaterial).color.lerpColors(tempStartCore.current, tempEndCore.current, squeezeIntensity.current);
             }
         }
         else {
@@ -111,7 +126,7 @@ export const Player: React.FC = () => {
                     // WIN STATE: Shrink and become Leaf-like
 
                     // Color: Transition to Leaf Green
-                    dynamicColor.current.lerp(new THREE.Color("#32cd32"), delta * 2);
+                    dynamicColor.current.lerp(tempLeafGreen.current, delta * 2);
                     shellMaterialRef.current.color.copy(dynamicColor.current);
 
                     // Transmission: Become Solid (0)
@@ -124,7 +139,7 @@ export const Player: React.FC = () => {
                     targetMetalness = 0.1;
 
                     // Emissive: Green Glow
-                    shellMaterialRef.current.emissive.lerp(new THREE.Color("#00ff00"), delta * 2);
+                    shellMaterialRef.current.emissive.lerp(tempGreen.current, delta * 2);
                     shellMaterialRef.current.emissiveIntensity = 0.5;
 
                     // Core: Remains hidden or very small
@@ -150,8 +165,7 @@ export const Player: React.FC = () => {
                     targetThickness = THREE.MathUtils.lerp(1.2, 0.3, waterProgress);
 
                     // Color: Fade to very light cyan (pure white can look weird with transmission)
-                    const targetColor = new THREE.Color("#f0ffff");
-                    dynamicColor.current.lerp(targetColor, waterProgress);
+                    dynamicColor.current.lerp(tempCyan.current, waterProgress);
                     shellMaterialRef.current.color.copy(dynamicColor.current);
 
                     // Core: Shrink to 0 so we can see through the body
@@ -160,7 +174,7 @@ export const Player: React.FC = () => {
                     // Emissive: Reduce glow as it becomes water/transparent
                     // Note: We use lerp here to avoid conflict with Block Flash
                     if (blockFlashIntensity.current <= 0) {
-                        shellMaterialRef.current.emissive.lerpColors(new THREE.Color(theme.emissive), new THREE.Color("#000000"), waterProgress);
+                        shellMaterialRef.current.emissive.lerpColors(tempStartCore.current.set(theme.emissive), tempBlack.current, waterProgress);
                         shellMaterialRef.current.emissiveIntensity = 0.4 * (1 - waterProgress);
                     }
 
@@ -266,9 +280,7 @@ export const Player: React.FC = () => {
                 fresnelMaterialRef.current.uniforms.uFresnelIntensity.value = 0.5 + waterProgress * 1.5;
 
                 // Color shifts from golden to cyan as it becomes water
-                const startColor = new THREE.Color("#f4a460"); // Sandy/warm
-                const endColor = new THREE.Color("#00ffff"); // Cyan water
-                fresnelMaterialRef.current.uniforms.uFresnelColor.value.lerpColors(startColor, endColor, waterProgress);
+                fresnelMaterialRef.current.uniforms.uFresnelColor.value.lerpColors(tempFresnelStart.current, tempFresnelEnd.current, waterProgress);
             }
         }
 

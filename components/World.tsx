@@ -43,6 +43,10 @@ export const World: React.FC = () => {
 
 const BreathingGround: React.FC<{ level: string, rainLevel?: number }> = ({ level, rainLevel = 0 }) => {
     const materialRef = useRef<any>(null);
+    // Reusable colors to avoid per-frame allocations
+    const waterColor = useMemo(() => new THREE.Color("#8b0000"), []);
+    const groundColor = useMemo(() => new THREE.Color("#2a0a0a"), []);
+
     let color = "#d88";
     if (level === 'CHAPTER_1') color = "#fff0f5";
     if (level === 'NAME') color = "#1a0b2e";
@@ -53,10 +57,8 @@ const BreathingGround: React.FC<{ level: string, rainLevel?: number }> = ({ leve
     if (level === 'SUN') color = "#2a0a0a";
 
     // Dynamic Water Transformation for Sun Finale
-    useFrame((state) => {
+    useFrame(() => {
         if (level === 'SUN' && rainLevel > 0 && materialRef.current) {
-            const waterColor = new THREE.Color("#8b0000"); // Blood Red Water
-            const groundColor = new THREE.Color("#2a0a0a");
             const progress = Math.min(rainLevel / 5, 1);
             materialRef.current.color.lerpColors(groundColor, waterColor, progress);
             materialRef.current.roughness = THREE.MathUtils.lerp(0.4, 0.02, progress);
@@ -141,7 +143,10 @@ const WindDanmakuSystem: React.FC = () => {
 
     // State for bullets: [x, y, z, speed, sineOffset, active(1/0), sizeVar]
     const bullets = useRef(new Float32Array(count * STRIDE));
-    const leafPos = new THREE.Vector3(0, 0.1, 8);
+    // Reusable objects to avoid per-frame allocations
+    const leafPos = useMemo(() => new THREE.Vector3(0, 0.1, 8), []);
+    const playerV = useRef(new THREE.Vector3());
+    const zeroMatrix = useMemo(() => new THREE.Matrix4().makeScale(0, 0, 0), []);
     const emitterZ = -15;
 
     // Initialize bullets off-screen
@@ -171,8 +176,8 @@ const WindDanmakuSystem: React.FC = () => {
             }
         }
 
-        // 2. Update bullets
-        const playerV = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
+        // 2. Update bullets - reuse playerV instead of creating new Vector3 each frame
+        playerV.current.set(playerPos.x, playerPos.y, playerPos.z);
         // Radius grows as player grows to make blocking easier/more satisfying
         const hitRadius = 1.2 * (1 + (playerScale - 1) * 0.3);
 
@@ -194,7 +199,7 @@ const WindDanmakuSystem: React.FC = () => {
                 // Only check collisions if game is active
                 if (!isLevelComplete) {
                     // Collision: Player (Block)
-                    const distPlayer = Math.sqrt(Math.pow(bx - playerV.x, 2) + Math.pow(bz - playerV.z, 2));
+                    const distPlayer = Math.sqrt(Math.pow(bx - playerV.current.x, 2) + Math.pow(bz - playerV.current.z, 2));
                     if (distPlayer < hitRadius) {
                         bullets.current[idx + 5] = 0; // Destroy
                         triggerPlayerBlock(); // Visual flash
@@ -228,8 +233,8 @@ const WindDanmakuSystem: React.FC = () => {
                 tempObject.updateMatrix();
                 instanceRef.current.setMatrixAt(i, tempObject.matrix);
             } else {
-                // Hide inactive
-                instanceRef.current.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0));
+                // Hide inactive - reuse cached zero matrix
+                instanceRef.current.setMatrixAt(i, zeroMatrix);
             }
         }
         instanceRef.current.instanceMatrix.needsUpdate = true;

@@ -62,11 +62,16 @@ const DynamicBackground: React.FC = () => {
     const currentLevel = useGameStore((state) => state.currentLevel);
     const colorRef = useRef(new THREE.Color(LEVEL_THEMES.PROLOGUE.bg));
     const fogColorRef = useRef(new THREE.Color(LEVEL_THEMES.PROLOGUE.fog));
+    // Reusable temp colors to avoid per-frame allocations
+    const tempBgColor = useRef(new THREE.Color());
+    const tempFogColor = useRef(new THREE.Color());
 
     useFrame((state, delta) => {
         const theme = LEVEL_THEMES[currentLevel];
-        colorRef.current.lerp(new THREE.Color(theme.bg), delta * 0.5);
-        fogColorRef.current.lerp(new THREE.Color(theme.fog), delta * 0.5);
+        tempBgColor.current.set(theme.bg);
+        tempFogColor.current.set(theme.fog);
+        colorRef.current.lerp(tempBgColor.current, delta * 0.5);
+        fogColorRef.current.lerp(tempFogColor.current, delta * 0.5);
         scene.background = colorRef.current;
         if (!scene.fog) scene.fog = new THREE.Fog(fogColorRef.current, 10, 60);
         else { (scene.fog as THREE.Fog).color.copy(fogColorRef.current); (scene.fog as THREE.Fog).far = currentLevel === 'HOME' ? 80 : 40; }
@@ -146,9 +151,13 @@ const CameraController = () => {
         };
     }, [camera, currentLevel]);
 
+    // Reusable offset vector to avoid per-effect allocations
+    const offsetRef = useRef(new THREE.Vector3(20, 20, 20));
+
     useEffect(() => {
         if (!controlsRef.current) return;
-        const offset = new THREE.Vector3(20, 20, 20);
+        const offset = offsetRef.current;
+        offset.set(20, 20, 20);
         let baseZoom = 40;
 
         if (currentLevel === 'PROLOGUE') { offset.set(15, 15, 15); baseZoom = 40; }
