@@ -23,21 +23,11 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            // Split node_modules into vendor chunks
-            if (id.includes('node_modules')) {
-              // Three.js - largest dependency (safe to split)
-              if (id.includes('/three/')) {
-                return 'vendor-three';
-              }
-              // React Three Fiber ecosystem (safe to split)
-              if (id.includes('@react-three')) {
-                return 'vendor-r3f';
-              }
-              // Note: React and react-dom NOT split due to React 19 initialization order requirements
-              // Animation and state management
-              if (id.includes('framer-motion') || id.includes('zustand')) {
-                return 'vendor-utils';
-              }
+            // Only split Three.js - it has no React dependency and is the largest chunk
+            // All other React-dependent libraries (framer-motion, zustand, @react-three)
+            // must be bundled together to avoid initialization order issues
+            if (id.includes('node_modules') && id.includes('/three/')) {
+              return 'vendor-three';
             }
           }
         }
