@@ -2,7 +2,7 @@
 
 ![didi preview](didi.gif)
 
-**didi v2.0 of Liquid Left** is a 2.5D atmospheric narrative exploration game. You play as *didi*, a sentient droplet navigating a breathing, organic world. Through a series of abstract, sensory stages, players explore themes of language, physical connection, and the cycle of nature.
+**didi v2.0 of Liquid Left** is a 2.5D atmospheric narrative exploration game adapted from [Xindi's fiction *Liquid Left*](https://xindizhou.com/Liquid-Left). You play as *didi*, a sentient droplet navigating a breathing, organic world. Through a series of abstract, sensory stages, players explore themes of language, physical connection, and the cycle of nature.
 
 > "我不害怕。我不在了，湿也永远会在。"  
 > "I am not afraid. Even if I am gone, the wetness will always remain."
