@@ -7,10 +7,23 @@ import { useI18n } from '../contexts/I18nContext';
 
 export const UI: React.FC = () => {
   const { currentLevel, narrativeIndex, isLevelComplete, startLevel, resetGame } = useGameStore();
-  const { translations } = useI18n();
+  const { translations, lang } = useI18n();
 
   // Detect touch device for context-sensitive text
   const isTouch = typeof window !== 'undefined' && window.matchMedia("(pointer: coarse)").matches;
+
+  // Language-aware font sizes (English is generally more compact)
+  const titleFontSize = lang === 'en'
+    ? 'clamp(0.875rem, 1.6vw, 1.4rem)'    // English: larger than narrative
+    : 'clamp(1rem, 2vw, 1.75rem)';         // Chinese: larger than narrative
+
+  const narrativeFontSize = lang === 'en'
+    ? 'clamp(0.75rem, 1.4vw, 1.15rem)'    // English: smaller
+    : 'clamp(0.875rem, 1.7vw, 1.4rem)';   // Chinese: original
+
+  const buttonFontSize = lang === 'en'
+    ? 'clamp(0.65rem, 1vw, 0.875rem)'     // English: smaller
+    : 'clamp(0.75rem, 1.2vw, 1rem)';      // Chinese: original
 
   // Get narratives from translations
   const chapter = translations.chapters[currentLevel];
@@ -52,11 +65,18 @@ export const UI: React.FC = () => {
           paddingRight: 'calc(0.75rem + env(safe-area-inset-right))',
         }}
       >
-        {/* Chapter Title - Smaller on mobile, larger in landscape */}
+        {/* Chapter Title - Fades out after loading */}
         <div className="text-gray-600/60">
-          <h1 className="text-base md:text-xl lg:text-2xl font-bold tracking-widest uppercase text-pink-900/50">
+          <motion.h1
+            key={currentLevel}
+            className="font-bold tracking-widest uppercase text-pink-900"
+            style={{ fontSize: titleFontSize }}
+            initial={{ opacity: 0.7 }}
+            animate={{ opacity: 0.25 }}
+            transition={{ delay: 3, duration: 4, ease: "easeOut" }}
+          >
             {title}
-          </h1>
+          </motion.h1>
         </div>
 
         {/* Narrative Text Container - Responsive with landscape handling */}
@@ -69,16 +89,19 @@ export const UI: React.FC = () => {
               exit={{ opacity: 0, filter: 'blur(10px)' }}
               transition={{ duration: 1.5 }}
             >
-              {/* Narrative Text - Smaller on mobile portrait, moderate in landscape */}
-              <p className="text-base md:text-xl lg:text-2xl text-slate-800/80 font-medium leading-relaxed drop-shadow-xs min-h-[4rem] md:min-h-[4rem]">
+              {/* Narrative Text - Responsive with clamp() */}
+              <p
+                className="text-slate-800/80 font-medium leading-relaxed drop-shadow-xs min-h-[4rem]"
+                style={{ fontSize: narrativeFontSize }}
+              >
                 {text}
               </p>
               {isLevelComplete && currentLevel !== 'SUN' && (
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  onClick={(e) => { e.stopPropagation(); handleNextLevel(); }}
-                  className="mt-4 md:mt-8 text-pink-500 border border-pink-300 px-4 py-1.5 md:px-6 md:py-2 text-sm md:text-base rounded-full hover:bg-pink-50 transition-colors"
+                  className="mt-4 md:mt-8 text-pink-500 border border-pink-300 px-4 py-1.5 md:px-6 md:py-2 rounded-full hover:bg-pink-50 transition-colors"
+                  style={{ fontSize: buttonFontSize }}
                 >
                   {translations.ui.proceed}
                 </motion.button>
@@ -87,8 +110,8 @@ export const UI: React.FC = () => {
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1, scale: 1.1 }}
-                  onClick={(e) => { e.stopPropagation(); resetGame(); }}
-                  className="mt-4 md:mt-8 text-blue-400 hover:text-blue-600 text-sm md:text-base"
+                  className="mt-4 md:mt-8 text-blue-400 hover:text-blue-600"
+                  style={{ fontSize: buttonFontSize }}
                 >
                   [ {translations.ui.rebirth} ]
                 </motion.button>
