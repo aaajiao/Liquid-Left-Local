@@ -72,7 +72,7 @@ export const UI: React.FC = () => {
             className="font-bold tracking-widest uppercase text-pink-900"
             style={{ fontSize: titleFontSize }}
             initial={{ opacity: 0.7 }}
-            animate={{ opacity: 0.25 }}
+            animate={{ opacity: 0.15 }}
             transition={{ delay: 3, duration: 4, ease: "easeOut" }}
           >
             {title}
@@ -89,18 +89,36 @@ export const UI: React.FC = () => {
               exit={{ opacity: 0, filter: 'blur(10px)' }}
               transition={{ duration: 1.5 }}
             >
-              {/* Narrative Text - Hover glow effect for better visibility */}
-              <motion.p
-                className="text-slate-800/80 font-medium leading-relaxed min-h-[4rem] cursor-default"
-                style={{ fontSize: narrativeFontSize }}
-                initial={{ textShadow: '0 0 0px transparent' }}
-                whileHover={{
-                  textShadow: '0 0 8px rgba(255,255,255,0.9), 0 0 16px rgba(255,255,255,0.6), 0 0 24px rgba(255,255,255,0.4)',
-                  transition: { duration: 0.3 }
-                }}
-              >
-                {text}
-              </motion.p>
+              {/* Narrative Text - Hover glow effect with chapter-specific colors */}
+              {(() => {
+                // Chapter-specific glow colors
+                const glowColorMap: Record<string, string> = {
+                  PROLOGUE: 'rgba(255,228,225,0.9)',      // 淡粉
+                  CHAPTER_1: 'rgba(255,240,245,0.9)',     // 薰衣草
+                  NAME: 'rgba(224,64,251,0.8)',           // 霓虹紫
+                  CHEWING: 'rgba(144,238,144,0.8)',       // 翠绿
+                  WIND: 'rgba(255,238,255,0.9)',          // 暖白粉
+                  TRAVEL: 'rgba(135,206,235,0.8)',        // 星光蓝
+                  CONNECTION: 'rgba(255,255,240,0.9)',    // 象牙白
+                  HOME: 'rgba(0,191,255,0.8)',            // 湖水蓝
+                  SUN: 'rgba(255,165,0,0.8)',             // 金橙
+                };
+                const glowColor = glowColorMap[currentLevel] || 'rgba(255,255,255,0.9)';
+
+                return (
+                  <motion.p
+                    className="text-slate-800/80 font-medium leading-relaxed min-h-[4rem] cursor-default"
+                    style={{ fontSize: narrativeFontSize }}
+                    initial={{ textShadow: '0 0 0px transparent' }}
+                    whileHover={{
+                      textShadow: `0 0 8px ${glowColor}, 0 0 16px ${glowColor}, 0 0 24px ${glowColor}`,
+                      transition: { duration: 0.3 }
+                    }}
+                  >
+                    {text}
+                  </motion.p>
+                );
+              })()}
               {isLevelComplete && currentLevel !== 'SUN' && (
                 <motion.button
                   initial={{ opacity: 0 }}
