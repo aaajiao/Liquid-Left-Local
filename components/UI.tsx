@@ -89,13 +89,18 @@ export const UI: React.FC = () => {
               exit={{ opacity: 0, filter: 'blur(10px)' }}
               transition={{ duration: 1.5 }}
             >
-              {/* Narrative Text - Responsive with clamp() */}
-              <p
-                className="text-slate-800/80 font-medium leading-relaxed drop-shadow-xs min-h-[4rem]"
+              {/* Narrative Text - Hover glow effect for better visibility */}
+              <motion.p
+                className="text-slate-800/80 font-medium leading-relaxed min-h-[4rem] cursor-default"
                 style={{ fontSize: narrativeFontSize }}
+                initial={{ textShadow: '0 0 0px transparent' }}
+                whileHover={{
+                  textShadow: '0 0 8px rgba(255,255,255,0.9), 0 0 16px rgba(255,255,255,0.6), 0 0 24px rgba(255,255,255,0.4)',
+                  transition: { duration: 0.3 }
+                }}
               >
                 {text}
-              </p>
+              </motion.p>
               {isLevelComplete && currentLevel !== 'SUN' && (
                 <motion.button
                   initial={{ opacity: 0 }}
