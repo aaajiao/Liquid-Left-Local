@@ -100,6 +100,7 @@ export const UI: React.FC = () => {
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
+                  onClick={(e) => { e.stopPropagation(); handleNextLevel(); }}
                   className="mt-4 md:mt-8 text-pink-500 border border-pink-300 px-4 py-1.5 md:px-6 md:py-2 rounded-full hover:bg-pink-50 transition-colors"
                   style={{ fontSize: buttonFontSize }}
                 >
@@ -110,6 +111,7 @@ export const UI: React.FC = () => {
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1, scale: 1.1 }}
+                  onClick={(e) => { e.stopPropagation(); resetGame(); }}
                   className="mt-4 md:mt-8 text-blue-400 hover:text-blue-600"
                   style={{ fontSize: buttonFontSize }}
                 >
