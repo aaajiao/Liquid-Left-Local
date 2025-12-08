@@ -9,7 +9,7 @@ export interface NodeData {
     connected: boolean;
 }
 
-export type LevelType = 'PROLOGUE' | 'CHAPTER_1' | 'NAME' | 'CHEWING' | 'WIND' | 'TRAVEL' | 'CONNECTION' | 'HOME' | 'SUN';
+export type LevelType = 'PROLOGUE' | 'LANGUAGE' | 'NAME' | 'CHEWING' | 'WIND' | 'TRAVEL' | 'CONNECTION' | 'HOME' | 'SUN';
 export type InteractionMode = 'SLINGSHOT' | 'LURE' | 'OBSERVER' | 'CLICK';
 
 export interface EnvFeature {
@@ -283,7 +283,7 @@ const generateSunEnv = () => {
 
 const START_POSITIONS: Record<LevelType, [number, number, number]> = {
     PROLOGUE: [0, 0.5, -12],
-    CHAPTER_1: [0, 0.5, 8],
+    LANGUAGE: [0, 0.5, 8],
     NAME: [0, 0.5, 0],
     CHEWING: [0, 0.5, -8],
     WIND: [0, 0.5, 0], // Start in middle to intercept wind
@@ -528,7 +528,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         const exists = connections.some(c => (c[0] === sourceId && c[1] === targetId) || (c[0] === targetId && c[1] === sourceId));
 
         if (!exists) {
-            if (currentLevel === 'CHAPTER_1') {
+            if (currentLevel === 'LANGUAGE') {
                 const currentSource = sequenceOrder[nextSequenceIndex];
                 const currentTarget = sequenceOrder[nextSequenceIndex + 1];
                 if (!currentSource || !currentTarget) { set({ draggingNodeId: null }); return; }
@@ -542,7 +542,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             const isComplete = connectedSet.size >= nodes.length && nodes.length > 0;
 
             let newSeqIndex = nextSequenceIndex;
-            if (currentLevel === 'CHAPTER_1') newSeqIndex++;
+            if (currentLevel === 'LANGUAGE') newSeqIndex++;
 
             // Connection logic
             let newNarrativeIndex = get().narrativeIndex;
@@ -575,7 +575,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         switch (level) {
             case 'PROLOGUE': genResult = generatePrologueEnv(); mode = 'SLINGSHOT'; break;
-            case 'CHAPTER_1': genResult = generateLevel1Env(); seq = genResult.nodes.map(n => n.id); break;
+            case 'LANGUAGE': genResult = generateLevel1Env(); seq = genResult.nodes.map(n => n.id); break;
             case 'NAME': genResult = generateNameEnv(); break;
             case 'CHEWING': genResult = generateChewingEnv(); break;
             case 'WIND': genResult = generateWindEnv(); break;

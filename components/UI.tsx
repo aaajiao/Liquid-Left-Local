@@ -42,8 +42,8 @@ export const UI: React.FC = () => {
   useEffect(() => { resumeAudio(); startAmbience(currentLevel); }, [currentLevel]);
 
   const handleNextLevel = () => {
-    if (currentLevel === 'PROLOGUE') startLevel('CHAPTER_1');
-    else if (currentLevel === 'CHAPTER_1') startLevel('NAME');
+    if (currentLevel === 'PROLOGUE') startLevel('LANGUAGE');
+    else if (currentLevel === 'LANGUAGE') startLevel('NAME');
     else if (currentLevel === 'NAME') startLevel('CHEWING');
     else if (currentLevel === 'CHEWING') startLevel('WIND');
     else if (currentLevel === 'WIND') startLevel('TRAVEL');
@@ -94,7 +94,7 @@ export const UI: React.FC = () => {
                 // Chapter-specific glow colors
                 const glowColorMap: Record<string, string> = {
                   PROLOGUE: 'rgba(255,228,225,0.9)',      // 淡粉
-                  CHAPTER_1: 'rgba(255,240,245,0.9)',     // 薰衣草
+                  LANGUAGE: 'rgba(255,240,245,0.9)',     // 薰衣草
                   NAME: 'rgba(224,64,251,0.8)',           // 霓虹紫
                   CHEWING: 'rgba(144,238,144,0.8)',       // 翠绿
                   WIND: 'rgba(255,238,255,0.9)',          // 暖白粉

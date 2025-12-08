@@ -57,7 +57,7 @@ const BreathingGround: React.FC<{ level: string, rainLevel?: number }> = ({ leve
     const groundColor = useMemo(() => new THREE.Color("#2a0a0a"), []);
 
     let color = "#d88";
-    if (level === 'CHAPTER_1') color = "#fff0f5";
+    if (level === 'LANGUAGE') color = "#fff0f5";
     if (level === 'NAME') color = "#1a0b2e";
     if (level === 'CHEWING') color = "#90ee90";
     if (level === 'WIND') color = "#ffe4e1";
@@ -790,7 +790,7 @@ const Atmosphere: React.FC<{ level: string }> = memo(({ level }) => {
     return (
         <>
             {level === 'PROLOGUE' && <Cloud opacity={0.4} speed={0.1} bounds={[5, 2, 15]} color="#b03060" position={[0, 2, -5]} />}
-            {level === 'CHAPTER_1' && <Sparkles count={50} scale={20} size={4} speed={0.4} opacity={0.5} color="#fff0f5" />}
+            {level === 'LANGUAGE' && <Sparkles count={50} scale={20} size={4} speed={0.4} opacity={0.5} color="#fff0f5" />}
             {level === 'NAME' && <Sparkles count={80} scale={15} size={3} speed={0.2} opacity={0.4} color="#8a2be2" />}
             {level === 'WIND' && <Cloud opacity={0.3} speed={1} bounds={[10, 2, 10]} color="#ffe4e1" />}
             {level === 'TRAVEL' && <Stars radius={100} depth={50} count={2000} factor={4} fade speed={1} />}

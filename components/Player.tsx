@@ -8,7 +8,7 @@ import { playStep, playConnect, playSqueeze, playSqueezeMax, playOrbBounce, play
 
 const PLAYER_THEMES: Record<LevelType, { shell: string, core: string, aura: string, emissive: string, sparkle: string }> = {
     PROLOGUE: { shell: "#ffebef", core: "#ffffff", aura: "#ff1493", emissive: "#ff69b4", sparkle: "#fff" },
-    CHAPTER_1: { shell: "#2a0a5e", core: "#00ffff", aura: "#000000", emissive: "#00ced1", sparkle: "#00ffff" },
+    LANGUAGE: { shell: "#2a0a5e", core: "#00ffff", aura: "#000000", emissive: "#00ced1", sparkle: "#00ffff" },
     NAME: { shell: "#ffffff", core: "#ffd700", aura: "#000000", emissive: "#ffffff", sparkle: "#ffd700" }, // High contrast: White/Gold start
     CHEWING: { shell: "#98fb98", core: "#006400", aura: "#2e8b57", emissive: "#3cb371", sparkle: "#00ff00" },
     WIND: { shell: "#f5deb3", core: "#8b4513", aura: "#a0522d", emissive: "#d2691e", sparkle: "#f4a460" },
@@ -368,7 +368,7 @@ export const Player: React.FC = () => {
         // PROLOGUE
         if (currentLevel === 'PROLOGUE') {
             pos.x = THREE.MathUtils.clamp(pos.x, -2.8, 2.8);
-            if (pos.z > 14.0) useGameStore.getState().startLevel('CHAPTER_1');
+            if (pos.z > 14.0) useGameStore.getState().startLevel('LANGUAGE');
             if (pos.z > 10.0) vel.add(new THREE.Vector3(0, 0, 1).multiplyScalar(20 * delta));
         }
 

@@ -289,7 +289,7 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
 
 const Node: React.FC<{ data: NodeData }> = ({ data }) => {
     const { setHoveredNode, startDragConnection, completeConnection, draggingNodeId, currentLevel, sequenceOrder, nextSequenceIndex } = useGameStore();
-    const isSequenceMode = currentLevel === 'CHAPTER_1';
+    const isSequenceMode = currentLevel === 'LANGUAGE';
     const isNextInSequence = isSequenceMode && sequenceOrder.indexOf(data.id) === nextSequenceIndex;
     const isInteractive = isSequenceMode ? isNextInSequence : true;
 
@@ -300,7 +300,7 @@ const Node: React.FC<{ data: NodeData }> = ({ data }) => {
     };
 
     const renderVisual = () => {
-        if (currentLevel === 'CHAPTER_1') return <Chapter1NodeVisual connected={data.connected} isNext={isNextInSequence} />;
+        if (currentLevel === 'LANGUAGE') return <Chapter1NodeVisual connected={data.connected} isNext={isNextInSequence} />;
         if (currentLevel === 'CONNECTION') return <Chapter6NodeVisual connected={data.connected} />;
         return <Chapter2NodeVisual connected={data.connected} isNext={!data.connected} />;
     }
@@ -362,7 +362,7 @@ export const PuzzleManager: React.FC = () => {
                     return <Chapter6Connection key={`${idA}-${idB}`} start={nA.position} end={nB.position} />
                 }
 
-                return <Line key={`${idA}-${idB}`} points={[new THREE.Vector3(...nA.position), new THREE.Vector3(...nB.position)]} color={currentLevel === 'CHAPTER_1' ? "#00ffff" : "#ffd700"} lineWidth={3} transparent opacity={0.8} />
+                return <Line key={`${idA}-${idB}`} points={[new THREE.Vector3(...nA.position), new THREE.Vector3(...nB.position)]} color={currentLevel === 'LANGUAGE' ? "#00ffff" : "#ffd700"} lineWidth={3} transparent opacity={0.8} />
             })}
         </group>
     );

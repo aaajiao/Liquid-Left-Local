@@ -13,7 +13,7 @@ import { I18nProvider } from './contexts/I18nContext';
 
 const LEVEL_THEMES: Record<LevelType, { bg: string, fog: string }> = {
     PROLOGUE: { bg: '#2a0a10', fog: '#501020' },
-    CHAPTER_1: { bg: '#fff0f5', fog: '#ffc0cb' },
+    LANGUAGE: { bg: '#fff0f5', fog: '#ffc0cb' },
     NAME: { bg: '#000005', fog: '#0a0520' }, // Deepened void with subtle purple
     CHEWING: { bg: '#1a2820', fog: '#2d4a35' }, // Dark shadow with green glow ("绿色的影子")
     WIND: { bg: '#2a1a1f', fog: '#4a3035' }, // Darker cave atmosphere ("黑暗的洞")
@@ -218,7 +218,7 @@ const App: React.FC = () => {
             if (['=', '-', '+', '_'].includes(e.key)) return;
             switch (e.key) {
                 case '1': startLevel('PROLOGUE'); break;
-                case '2': startLevel('CHAPTER_1'); break;
+                case '2': startLevel('LANGUAGE'); break;
                 case '3': startLevel('NAME'); break;
                 case '4': startLevel('CHEWING'); break;
                 case '5': startLevel('WIND'); break;
