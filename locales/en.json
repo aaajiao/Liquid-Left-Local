@@ -3,7 +3,7 @@
         "PROLOGUE": {
             "title": "Prologue: Birth",
             "narratives": [
-                "This time, I seem to be a fuzzy drop of something.",
+                "This time, I felt like a drop of fluff.",
                 "Hold left-click, drag back to aim, release.",
                 "Head towards the distant light."
             ],
@@ -15,7 +15,7 @@
         "CHAPTER_1": {
             "title": "Chapter 1: Language",
             "narratives": [
-                "The wet season has come. I and other liquids emerged from the surface of this planet.",
+                "The wet season happens, I and other liquids emerged from the surface of the planet.",
                 "Hold left-click. Patterns always contain secrets.",
                 "Drag the threads to connect those neural nodes."
             ],
@@ -28,7 +28,7 @@
             "title": "Chapter 2: Name",
             "narratives": [
                 "didi, what is your name?",
-                "What is bodily language?",
+                "What is the language of physicality?",
                 "Pop the bubbles, collect the purple fragments."
             ]
         },
@@ -45,37 +45,37 @@
             "title": "Chapter 4: Wind",
             "narratives": [
                 "When the liquid dries up, it shrinks into my body... it hurts so much...",
-                "I can feel myself slowly shrinking, slowly fading...",
-                "It's okay, I've felt an even stronger life force while resisting life..."
+                "I can feel myself getting smaller and darker...",
+                "It's all right, didi. I feel more alive when I resist life..."
             ]
         },
         "TRAVEL": {
             "title": "Chapter 5: Travel",
             "narratives": [
                 "What is a vehicle?",
-                "As long as you're willing to shed a tear, you can ride it anywhere."
+                "If you are willing to shed a tear, you can ride your tear to go anywhere."
             ]
         },
         "CONNECTION": {
             "title": "Chapter 6: Connection",
             "narratives": [
-                "Our inner structures are firmly connected...",
+                "Our internal structures are solidly connected...",
                 "Connect all the nodes...",
-                "Forming a vast network, a massive skeleton."
+                "Forming a vast web, a massive skeleton."
             ]
         },
         "HOME": {
             "title": "Chapter 7: Home",
             "narratives": [
-                "Didi, this is our bodily language, our home.",
-                "So it fell into the lake, and the lake is made of our liquid tears."
+                "Didi, this is the language of our physicality, our home.",
+                "It had fallen into the lake, which is made up of our tears."
             ]
         },
         "SUN": {
             "title": "Finale: Sun",
             "narratives": [
                 "I am not afraid. Even when I'm gone, the wetness will always remain.",
-                "This is not an arrival, just a part of the infinite cycle.",
+                "This is not an arrival, it's just a part of an infinite cycle.",
                 "Click the mushroom, bring down the rain."
             ]
         }
@@ -90,12 +90,12 @@
     "npc": {
         "witheredLeaf": {
             "withering": [
-                "Stay away!",
-                "I want to be dried by the wind...",
-                "Once I'm dried, I can become a specimen"
+                "Don't come any closer!",
+                "I want to be dried out. I'm waiting for a wilting moment...",
+                "Once I'm dried, I can become a specimen."
             ],
-            "healing": "It hurts... but I don't need liquid",
-            "healthy": "Thank you, nice to meet you, little drop!"
+            "healing": "It hurts...but I don't need liquid!",
+            "healthy": "Thank you, nice to meet you, little drop."
         }
     }
 }
