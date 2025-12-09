@@ -66,6 +66,10 @@ interface GameState {
     rainLevel: number;
     isRaining: boolean;
 
+    // Home (Melt into lake)
+    isHomeMelting: boolean;
+    homeMeltProgress: number; // 0 to 1
+
     // Dialogue System (for Dry NPC, etc.)
     activeDialogue: { npcId: string, stage: number } | null;
     dryConversationStage: number; // Track Dry's conversation progress
@@ -97,6 +101,7 @@ interface GameState {
     healLeaf: (amount: number) => void;
     triggerPlayerBlock: () => void;
     triggerRain: () => void;
+    triggerHomeMelt: () => void;
     selectVehicle: (type: string) => void;
 
     // Dialogue System Actions
@@ -322,6 +327,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     rainLevel: 0,
     isRaining: false,
 
+    // Home Melt Init
+    isHomeMelting: false,
+    homeMeltProgress: 0,
+
     // Dialogue System Init
     activeDialogue: null,
     dryConversationStage: 0,
@@ -517,6 +526,26 @@ export const useGameStore = create<GameState>((set, get) => ({
         }, 50);
     },
 
+    triggerHomeMelt: () => {
+        set({ isHomeMelting: true });
+
+        // Animate melt progress over 5 seconds (to sync with UI text fade)
+        const duration = 5000; // 5 seconds
+        const startTime = Date.now();
+
+        const interval = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            set({ homeMeltProgress: progress });
+
+            if (progress >= 1) {
+                clearInterval(interval);
+                // Don't auto-advance - let UI handle navigation
+            }
+        }, 16); // ~60fps
+    },
+
     completeConnection: (targetId) => {
         const { draggingNodeId, connections, nodes, currentLevel, sequenceOrder, nextSequenceIndex, tetheredNodeId } = get();
 
@@ -612,6 +641,8 @@ export const useGameStore = create<GameState>((set, get) => ({
             lastBlockTime: 0,
             rainLevel: 0,
             isRaining: false,
+            isHomeMelting: false,
+            homeMeltProgress: 0,
             isInteractiveHover: false
         });
     },

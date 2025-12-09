@@ -1,13 +1,16 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore, LevelType } from '../store';
 import { AnimatePresence, motion } from 'framer-motion';
 import { resumeAudio, startAmbience } from '../utils/audio';
 import { useI18n } from '../contexts/I18nContext';
 
 export const UI: React.FC = () => {
-  const { currentLevel, narrativeIndex, isLevelComplete, startLevel, resetGame } = useGameStore();
+  const { currentLevel, narrativeIndex, isLevelComplete, startLevel, resetGame, triggerHomeMelt } = useGameStore();
   const { translations, lang } = useI18n();
+
+  // State for HOME chapter fade-out transition
+  const [isHomeFadingOut, setIsHomeFadingOut] = useState(false);
 
   // Detect touch device for context-sensitive text
   const isTouch = typeof window !== 'undefined' && window.matchMedia("(pointer: coarse)").matches;
@@ -142,7 +145,7 @@ export const UI: React.FC = () => {
                   </motion.p>
                 );
               })()}
-              {isLevelComplete && currentLevel !== 'SUN' && (
+              {isLevelComplete && currentLevel !== 'SUN' && currentLevel !== 'HOME' && (
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -151,6 +154,36 @@ export const UI: React.FC = () => {
                   style={{ fontSize: buttonFontSize }}
                 >
                   {translations.ui.proceed}
+                </motion.button>
+              )}
+              {currentLevel === 'HOME' && isLevelComplete && (
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={isHomeFadingOut
+                    ? { opacity: 0, scale: 0.9, filter: 'blur(10px)' }
+                    : { opacity: 1, scale: 1.1 }
+                  }
+                  transition={isHomeFadingOut
+                    ? { duration: 5, ease: 'easeOut' }
+                    : { duration: 0.5 }
+                  }
+                  onAnimationComplete={() => {
+                    if (isHomeFadingOut) {
+                      handleNextLevel();
+                      setIsHomeFadingOut(false);
+                    }
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isHomeFadingOut) {
+                      setIsHomeFadingOut(true);
+                      triggerHomeMelt(); // Sync didi melt animation
+                    }
+                  }}
+                  className="mt-4 md:mt-8 text-cyan-400 hover:text-cyan-600 active:text-cyan-700"
+                  style={{ fontSize: buttonFontSize, pointerEvents: isHomeFadingOut ? 'none' : 'auto' }}
+                >
+                  [ {translations.ui.meltIntoOne} ]
                 </motion.button>
               )}
               {currentLevel === 'SUN' && isLevelComplete && (

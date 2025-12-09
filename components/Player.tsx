@@ -29,7 +29,7 @@ export const Player: React.FC = () => {
     const {
         cursorWorldPos, isMouseDown, interactionMode, updatePlayerPos, currentLevel, envFeatures,
         playerScale, fragmentsCollected, absorbFragment, growPlayer, healLeaf, selectVehicle, rainLevel,
-        lastBlockTime, isLevelComplete
+        lastBlockTime, isLevelComplete, isHomeMelting, homeMeltProgress
     } = useGameStore();
 
     const theme = PLAYER_THEMES[currentLevel];
@@ -194,7 +194,34 @@ export const Player: React.FC = () => {
                 targetOpacity = Math.max(0, 1 - (currentRainLevel / 10));
                 auraOpacity = 0.5 * targetOpacity;
                 shellMaterialRef.current.color.copy(dynamicColor.current); // standard update
-            } else {
+            }
+            // -- HOME LEVEL MELT INTO LAKE --
+            else if (currentLevel === 'HOME' && isHomeMelting) {
+                const currentMeltProgress = useGameStore.getState().homeMeltProgress;
+
+                // Opacity: Fade out completely
+                targetOpacity = Math.max(0, 1 - currentMeltProgress);
+                auraOpacity = 0.5 * targetOpacity;
+
+                // Transmission: Become fully transparent water
+                targetTransmission = THREE.MathUtils.lerp(0.2, 1.0, currentMeltProgress);
+
+                // Color: Shift to cyan/lake color as it melts
+                dynamicColor.current.lerp(new THREE.Color('#00bfff'), currentMeltProgress * 0.5);
+                shellMaterialRef.current.color.copy(dynamicColor.current);
+
+                // Roughness: Become perfectly smooth water
+                targetRoughness = THREE.MathUtils.lerp(0.3, 0.0, currentMeltProgress);
+
+                // Core: Shrink and fade
+                coreScale = 1 - currentMeltProgress;
+
+                // Position: Sink downward into lake
+                if (groupRef.current) {
+                    groupRef.current.position.y = 0.5 - (currentMeltProgress * 2); // Sink 2 units
+                }
+            }
+            else {
                 // Standard update for other levels
                 shellMaterialRef.current.color.copy(dynamicColor.current);
             }
@@ -231,8 +258,9 @@ export const Player: React.FC = () => {
             // Apply Opacity (Alpha Fade) logic
             // For WIND level with high transmission, keep transparent=true
             // For SUN level, always enable transparent to ensure smooth fade start
+            // For HOME level melting, ensure transparent for melt effect
             // For other levels, only enable transparent when fading
-            const shouldBeTransparent = targetOpacity < 0.99 || (currentLevel === 'WIND' && targetTransmission > 0.5) || (currentLevel === 'SUN');
+            const shouldBeTransparent = targetOpacity < 0.99 || (currentLevel === 'WIND' && targetTransmission > 0.5) || (currentLevel === 'SUN') || (currentLevel === 'HOME' && isHomeMelting);
 
             if (shouldBeTransparent) {
                 if (!shellMaterialRef.current.transparent) {
@@ -484,7 +512,12 @@ export const Player: React.FC = () => {
         const squash = 1 / Math.sqrt(stretch);
 
         if (bodyGroupRef.current) {
-            bodyGroupRef.current.scale.set(squash * finalScale, stretch * finalScale, squash * finalScale);
+            // HOME melt: Shrink entire body to 0 as it melts
+            let meltScale = 1;
+            if (currentLevel === 'HOME' && isHomeMelting) {
+                meltScale = Math.max(0, 1 - homeMeltProgress);
+            }
+            bodyGroupRef.current.scale.set(squash * finalScale * meltScale, stretch * finalScale * meltScale, squash * finalScale * meltScale);
         }
 
     });
@@ -500,6 +533,8 @@ export const Player: React.FC = () => {
 
     // Calculate fade opacity for React-controlled components (Sparkles)
     const sunLevelOpacity = currentLevel === 'SUN' ? Math.max(0, 1 - (rainLevel / 10)) : 1;
+    const homeMeltOpacity = (currentLevel === 'HOME' && isHomeMelting) ? Math.max(0, 1 - homeMeltProgress) : 1;
+    const combinedOpacity = Math.min(sunLevelOpacity, homeMeltOpacity);
 
     return (
         <group ref={groupRef}>
@@ -608,7 +643,7 @@ export const Player: React.FC = () => {
                     scale={1.2}
                     size={4}
                     speed={0.4}
-                    opacity={0.8 * sunLevelOpacity}
+                    opacity={0.8 * combinedOpacity}
                     color={theme.sparkle}
                 />
             </group>
@@ -619,7 +654,12 @@ export const Player: React.FC = () => {
                 </group>
             )}
 
-            <pointLight intensity={3 * sunLevelOpacity} distance={6} color={theme.emissive} decay={2} />
+            {/* Ripple Effect - HOME Chapter Melt */}
+            {currentLevel === 'HOME' && isHomeMelting && (
+                <MeltRipple progress={homeMeltProgress} />
+            )}
+
+            <pointLight intensity={3 * combinedOpacity} distance={6} color={theme.emissive} decay={2} />
 
             {interactionMode === 'SLINGSHOT' && slingshotVector && (
                 <Line points={[new THREE.Vector3(0, 0, 0), slingshotVector.clone().multiplyScalar(-1)]} color="#fff" lineWidth={4} transparent opacity={0.5} />
@@ -629,6 +669,58 @@ export const Player: React.FC = () => {
             <Suspense fallback={null}>
                 <PaThoughtBubbles playerPos={position.current} theme={theme} />
             </Suspense>
+        </group>
+    );
+};
+
+// Melt Ripple Effect Component - Expanding rings when didi melts into lake
+const MeltRipple: React.FC<{ progress: number }> = ({ progress }) => {
+    const ring1Ref = useRef<THREE.Mesh>(null);
+    const ring2Ref = useRef<THREE.Mesh>(null);
+    const ring3Ref = useRef<THREE.Mesh>(null);
+
+    useFrame(() => {
+        // Three staggered ripple rings
+        const rings = [
+            { ref: ring1Ref, delay: 0 },
+            { ref: ring2Ref, delay: 0.2 },
+            { ref: ring3Ref, delay: 0.4 }
+        ];
+
+        rings.forEach(({ ref, delay }) => {
+            if (!ref.current) return;
+
+            const adjustedProgress = Math.max(0, Math.min(1, (progress - delay) / (1 - delay)));
+
+            // Scale: 0 -> 6 as it expands
+            const scale = adjustedProgress * 6;
+            ref.current.scale.set(scale, scale, 1);
+
+            // Opacity: Fade in then out (peak at 50%)
+            const opacity = adjustedProgress < 0.5
+                ? adjustedProgress * 2 * 0.6
+                : (1 - adjustedProgress) * 2 * 0.6;
+            (ref.current.material as THREE.MeshBasicMaterial).opacity = opacity;
+        });
+    });
+
+    return (
+        <group position={[0, -1.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            {/* Ring 1 */}
+            <mesh ref={ring1Ref}>
+                <ringGeometry args={[0.8, 1, 64]} />
+                <meshBasicMaterial color="#00bfff" transparent opacity={0} side={THREE.DoubleSide} />
+            </mesh>
+            {/* Ring 2 - Delayed */}
+            <mesh ref={ring2Ref}>
+                <ringGeometry args={[0.8, 1, 64]} />
+                <meshBasicMaterial color="#87ceeb" transparent opacity={0} side={THREE.DoubleSide} />
+            </mesh>
+            {/* Ring 3 - Most delayed */}
+            <mesh ref={ring3Ref}>
+                <ringGeometry args={[0.8, 1, 64]} />
+                <meshBasicMaterial color="#b0e0e6" transparent opacity={0} side={THREE.DoubleSide} />
+            </mesh>
         </group>
     );
 };

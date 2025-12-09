@@ -14,6 +14,7 @@ export interface Translations {
     ui: {
         proceed: string;
         rebirth: string;
+        meltIntoOne: string;
         language: string;
         chinese: string;
         english: string;
