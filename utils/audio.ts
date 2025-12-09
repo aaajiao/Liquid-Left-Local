@@ -54,6 +54,669 @@ export const startAmbience = (level: string) => {
     ambienceNode = masterGain;
 };
 
+// ===== BACKGROUND MUSIC SYSTEM =====
+
+interface MusicNodes {
+    oscillators: OscillatorNode[];
+    gains: GainNode[];
+    filters: BiquadFilterNode[];
+    noises: AudioBufferSourceNode[];
+    lfos: OscillatorNode[];
+    masterGain: GainNode;
+}
+
+let currentMusicNodes: MusicNodes | null = null;
+let currentMusicLevel: string = '';
+
+// Master volume for all background music (adjustable after testing)
+const MUSIC_MASTER_VOLUME = 0.06;
+const CROSSFADE_DURATION = 1.5;
+
+// Utility: Create pink noise buffer
+const createPinkNoiseBuffer = (ctx: AudioContext, duration: number): AudioBuffer => {
+    const bufferSize = ctx.sampleRate * duration;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99765 * b0 + white * 0.0990460;
+        b1 = 0.96300 * b1 + white * 0.2965164;
+        b2 = 0.57000 * b2 + white * 1.0526913;
+        data[i] = (b0 + b1 + b2 + white * 0.1848) * 0.06;
+    }
+    return buffer;
+};
+
+// Fade out and disconnect current music
+const fadeOutCurrentMusic = (duration: number) => {
+    if (!currentMusicNodes) return;
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const nodes = currentMusicNodes;
+
+    nodes.masterGain.gain.linearRampToValueAtTime(0, t + duration);
+
+    setTimeout(() => {
+        try {
+            nodes.oscillators.forEach(o => { try { o.stop(); o.disconnect(); } catch (e) { } });
+            nodes.noises.forEach(n => { try { n.stop(); n.disconnect(); } catch (e) { } });
+            nodes.lfos.forEach(l => { try { l.stop(); l.disconnect(); } catch (e) { } });
+            nodes.gains.forEach(g => { try { g.disconnect(); } catch (e) { } });
+            nodes.filters.forEach(f => { try { f.disconnect(); } catch (e) { } });
+            nodes.masterGain.disconnect();
+        } catch (e) { }
+    }, duration * 1000 + 100);
+};
+
+// ===== CHAPTER MUSIC GENERATORS =====
+
+// PROLOGUE: Heartbeat Drone (心跳脉冲 + Pink Noise)
+const createPrologueMusic = (): MusicNodes => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, t);
+    masterGain.gain.linearRampToValueAtTime(MUSIC_MASTER_VOLUME, t + CROSSFADE_DURATION);
+    masterGain.connect(ctx.destination);
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+    const filters: BiquadFilterNode[] = [];
+    const noises: AudioBufferSourceNode[] = [];
+    const lfos: OscillatorNode[] = [];
+
+    // Layer 1: Heartbeat bass (55Hz A1)
+    const heartOsc = ctx.createOscillator();
+    heartOsc.type = 'sine';
+    heartOsc.frequency.value = 55;
+
+    const heartGain = ctx.createGain();
+    heartGain.gain.value = 0.4;
+
+    // LFO for heartbeat rhythm (~1Hz)
+    const heartLfo = ctx.createOscillator();
+    heartLfo.type = 'sine';
+    heartLfo.frequency.value = 1.0;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.25;
+    heartLfo.connect(lfoGain);
+    lfoGain.connect(heartGain.gain);
+
+    heartOsc.connect(heartGain);
+    heartGain.connect(masterGain);
+    heartOsc.start(t);
+    heartLfo.start(t);
+
+    oscillators.push(heartOsc);
+    gains.push(heartGain);
+    lfos.push(heartLfo);
+
+    // Layer 2: Pink noise (womb ambience)
+    const noiseBuffer = createPinkNoiseBuffer(ctx, 8);
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    noise.loop = true;
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.value = 200;
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.5;
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(masterGain);
+    noise.start(t);
+
+    noises.push(noise);
+    filters.push(noiseFilter);
+    gains.push(noiseGain);
+
+    return { oscillators, gains, filters, noises, lfos, masterGain };
+};
+
+// LANGUAGE: Neural Pulse Pad (神经泛音 + Pad)
+const createLanguageMusic = (): MusicNodes => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, t);
+    masterGain.gain.linearRampToValueAtTime(MUSIC_MASTER_VOLUME, t + CROSSFADE_DURATION);
+    masterGain.connect(ctx.destination);
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+    const filters: BiquadFilterNode[] = [];
+    const noises: AudioBufferSourceNode[] = [];
+    const lfos: OscillatorNode[] = [];
+
+    // Layer 1: Sustained pad (220Hz A3)
+    const padOsc = ctx.createOscillator();
+    padOsc.type = 'triangle';
+    padOsc.frequency.value = 220;
+
+    const padGain = ctx.createGain();
+    padGain.gain.value = 0.3;
+
+    // Gentle tremolo
+    const padLfo = ctx.createOscillator();
+    padLfo.frequency.value = 0.3;
+    const padLfoGain = ctx.createGain();
+    padLfoGain.gain.value = 0.1;
+    padLfo.connect(padLfoGain);
+    padLfoGain.connect(padGain.gain);
+
+    padOsc.connect(padGain);
+    padGain.connect(masterGain);
+    padOsc.start(t);
+    padLfo.start(t);
+
+    oscillators.push(padOsc);
+    gains.push(padGain);
+    lfos.push(padLfo);
+
+    // Layer 2: Higher harmonic (330Hz E4)
+    const harmOsc = ctx.createOscillator();
+    harmOsc.type = 'sine';
+    harmOsc.frequency.value = 330;
+
+    const harmGain = ctx.createGain();
+    harmGain.gain.value = 0.15;
+
+    harmOsc.connect(harmGain);
+    harmGain.connect(masterGain);
+    harmOsc.start(t);
+
+    oscillators.push(harmOsc);
+    gains.push(harmGain);
+
+    return { oscillators, gains, filters, noises, lfos, masterGain };
+};
+
+// NAME: Void Ambience (深渊 Drone + 高频点缀)
+const createNameMusic = (): MusicNodes => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, t);
+    masterGain.gain.linearRampToValueAtTime(0.04, t + CROSSFADE_DURATION); // Lower volume
+    masterGain.connect(ctx.destination);
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+    const filters: BiquadFilterNode[] = [];
+    const noises: AudioBufferSourceNode[] = [];
+    const lfos: OscillatorNode[] = [];
+
+    // Layer 1: Deep drone (40Hz)
+    const droneOsc = ctx.createOscillator();
+    droneOsc.type = 'sine';
+    droneOsc.frequency.value = 40;
+
+    const droneGain = ctx.createGain();
+    droneGain.gain.value = 0.6;
+
+    droneOsc.connect(droneGain);
+    droneGain.connect(masterGain);
+    droneOsc.start(t);
+
+    oscillators.push(droneOsc);
+    gains.push(droneGain);
+
+    // Layer 2: Bandpass scanning noise
+    const noiseBuffer = createPinkNoiseBuffer(ctx, 10);
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    noise.loop = true;
+
+    const scanFilter = ctx.createBiquadFilter();
+    scanFilter.type = 'bandpass';
+    scanFilter.Q.value = 5;
+    scanFilter.frequency.value = 400;
+
+    // LFO to scan frequency
+    const scanLfo = ctx.createOscillator();
+    scanLfo.frequency.value = 0.05;
+    const scanLfoGain = ctx.createGain();
+    scanLfoGain.gain.value = 300;
+    scanLfo.connect(scanLfoGain);
+    scanLfoGain.connect(scanFilter.frequency);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.3;
+
+    noise.connect(scanFilter);
+    scanFilter.connect(noiseGain);
+    noiseGain.connect(masterGain);
+    noise.start(t);
+    scanLfo.start(t);
+
+    noises.push(noise);
+    filters.push(scanFilter);
+    gains.push(noiseGain);
+    lfos.push(scanLfo);
+
+    return { oscillators, gains, filters, noises, lfos, masterGain };
+};
+
+// CHEWING: Organic Churn (蠕动低频 + 挤压脉冲)
+const createChewingMusic = (): MusicNodes => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, t);
+    masterGain.gain.linearRampToValueAtTime(0.07, t + CROSSFADE_DURATION);
+    masterGain.connect(ctx.destination);
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+    const filters: BiquadFilterNode[] = [];
+    const noises: AudioBufferSourceNode[] = [];
+    const lfos: OscillatorNode[] = [];
+
+    // Layer 1: Churning bass (82Hz E2)
+    const churnOsc = ctx.createOscillator();
+    churnOsc.type = 'sawtooth';
+    churnOsc.frequency.value = 82;
+
+    const churnFilter = ctx.createBiquadFilter();
+    churnFilter.type = 'lowpass';
+    churnFilter.frequency.value = 150;
+
+    const churnGain = ctx.createGain();
+    churnGain.gain.value = 0.4;
+
+    // LFO for organic movement
+    const churnLfo = ctx.createOscillator();
+    churnLfo.frequency.value = 0.7;
+    const churnLfoGain = ctx.createGain();
+    churnLfoGain.gain.value = 20;
+    churnLfo.connect(churnLfoGain);
+    churnLfoGain.connect(churnOsc.frequency);
+
+    churnOsc.connect(churnFilter);
+    churnFilter.connect(churnGain);
+    churnGain.connect(masterGain);
+    churnOsc.start(t);
+    churnLfo.start(t);
+
+    oscillators.push(churnOsc);
+    filters.push(churnFilter);
+    gains.push(churnGain);
+    lfos.push(churnLfo);
+
+    // Layer 2: Sub bass pulse
+    const subOsc = ctx.createOscillator();
+    subOsc.type = 'sine';
+    subOsc.frequency.value = 41;
+
+    const subGain = ctx.createGain();
+    subGain.gain.value = 0.3;
+
+    // Slow pulse LFO
+    const subLfo = ctx.createOscillator();
+    subLfo.frequency.value = 0.4;
+    const subLfoGain = ctx.createGain();
+    subLfoGain.gain.value = 0.2;
+    subLfo.connect(subLfoGain);
+    subLfoGain.connect(subGain.gain);
+
+    subOsc.connect(subGain);
+    subGain.connect(masterGain);
+    subOsc.start(t);
+    subLfo.start(t);
+
+    oscillators.push(subOsc);
+    gains.push(subGain);
+    lfos.push(subLfo);
+
+    return { oscillators, gains, filters, noises, lfos, masterGain };
+};
+
+// WIND: Tension Wind (风噪 + 紧张脉动)
+const createWindMusic = (): MusicNodes => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, t);
+    masterGain.gain.linearRampToValueAtTime(0.10, t + CROSSFADE_DURATION); // Higher for tension
+    masterGain.connect(ctx.destination);
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+    const filters: BiquadFilterNode[] = [];
+    const noises: AudioBufferSourceNode[] = [];
+    const lfos: OscillatorNode[] = [];
+
+    // Layer 1: Wind noise
+    const bufferSize = ctx.sampleRate * 6;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.5;
+    }
+
+    const windNoise = ctx.createBufferSource();
+    windNoise.buffer = buffer;
+    windNoise.loop = true;
+
+    const windFilter = ctx.createBiquadFilter();
+    windFilter.type = 'bandpass';
+    windFilter.frequency.value = 600;
+    windFilter.Q.value = 1;
+
+    // LFO for wind intensity
+    const windLfo = ctx.createOscillator();
+    windLfo.frequency.value = 0.2;
+    const windLfoGain = ctx.createGain();
+    windLfoGain.gain.value = 400;
+    windLfo.connect(windLfoGain);
+    windLfoGain.connect(windFilter.frequency);
+
+    const windGain = ctx.createGain();
+    windGain.gain.value = 0.5;
+
+    windNoise.connect(windFilter);
+    windFilter.connect(windGain);
+    windGain.connect(masterGain);
+    windNoise.start(t);
+    windLfo.start(t);
+
+    noises.push(windNoise);
+    filters.push(windFilter);
+    gains.push(windGain);
+    lfos.push(windLfo);
+
+    // Layer 2: Threatening low pulse
+    const threatOsc = ctx.createOscillator();
+    threatOsc.type = 'sine';
+    threatOsc.frequency.value = 50;
+
+    const threatGain = ctx.createGain();
+    threatGain.gain.value = 0.2;
+
+    // Irregular pulse
+    const threatLfo = ctx.createOscillator();
+    threatLfo.frequency.value = 0.8;
+    const threatLfoGain = ctx.createGain();
+    threatLfoGain.gain.value = 0.15;
+    threatLfo.connect(threatLfoGain);
+    threatLfoGain.connect(threatGain.gain);
+
+    threatOsc.connect(threatGain);
+    threatGain.connect(masterGain);
+    threatOsc.start(t);
+    threatLfo.start(t);
+
+    oscillators.push(threatOsc);
+    gains.push(threatGain);
+    lfos.push(threatLfo);
+
+    return { oscillators, gains, filters, noises, lfos, masterGain };
+};
+
+// TRAVEL: Emotional Flow (情感 Pad + 空旷)
+const createTravelMusic = (): MusicNodes => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, t);
+    masterGain.gain.linearRampToValueAtTime(0.05, t + CROSSFADE_DURATION);
+    masterGain.connect(ctx.destination);
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+    const filters: BiquadFilterNode[] = [];
+    const noises: AudioBufferSourceNode[] = [];
+    const lfos: OscillatorNode[] = [];
+
+    // D minor chord: D3, F3, A3 (146.8, 174.6, 220)
+    const chordFreqs = [146.83, 174.61, 220];
+
+    chordFreqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+
+        const gain = ctx.createGain();
+        gain.gain.value = 0.2 - i * 0.03;
+
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(t);
+
+        oscillators.push(osc);
+        gains.push(gain);
+    });
+
+    // Slow breathing LFO on master
+    const breathLfo = ctx.createOscillator();
+    breathLfo.frequency.value = 0.08;
+    const breathLfoGain = ctx.createGain();
+    breathLfoGain.gain.value = 0.02;
+    breathLfo.connect(breathLfoGain);
+    breathLfoGain.connect(masterGain.gain);
+    breathLfo.start(t);
+
+    lfos.push(breathLfo);
+
+    return { oscillators, gains, filters, noises, lfos, masterGain };
+};
+
+// CONNECTION: Bone Resonance (骨骼共振 + 金属泛音)
+const createConnectionMusic = (): MusicNodes => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, t);
+    masterGain.gain.linearRampToValueAtTime(MUSIC_MASTER_VOLUME, t + CROSSFADE_DURATION);
+    masterGain.connect(ctx.destination);
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+    const filters: BiquadFilterNode[] = [];
+    const noises: AudioBufferSourceNode[] = [];
+    const lfos: OscillatorNode[] = [];
+
+    // Layer 1: Bone drone (65Hz C2)
+    const boneOsc = ctx.createOscillator();
+    boneOsc.type = 'sine';
+    boneOsc.frequency.value = 65;
+
+    const boneGain = ctx.createGain();
+    boneGain.gain.value = 0.4;
+
+    // Breathing LFO
+    const boneLfo = ctx.createOscillator();
+    boneLfo.frequency.value = 0.15;
+    const boneLfoGain = ctx.createGain();
+    boneLfoGain.gain.value = 0.15;
+    boneLfo.connect(boneLfoGain);
+    boneLfoGain.connect(boneGain.gain);
+
+    boneOsc.connect(boneGain);
+    boneGain.connect(masterGain);
+    boneOsc.start(t);
+    boneLfo.start(t);
+
+    oscillators.push(boneOsc);
+    gains.push(boneGain);
+    lfos.push(boneLfo);
+
+    // Layer 2: Metallic overtone (harmonic series)
+    const metalOsc = ctx.createOscillator();
+    metalOsc.type = 'triangle';
+    metalOsc.frequency.value = 195; // 3rd harmonic
+
+    const metalGain = ctx.createGain();
+    metalGain.gain.value = 0.08;
+
+    metalOsc.connect(metalGain);
+    metalGain.connect(masterGain);
+    metalOsc.start(t);
+
+    oscillators.push(metalOsc);
+    gains.push(metalGain);
+
+    return { oscillators, gains, filters, noises, lfos, masterGain };
+};
+
+// HOME: Lake Serenity (水面和声 + 波纹)
+const createHomeMusic = (): MusicNodes => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, t);
+    masterGain.gain.linearRampToValueAtTime(0.04, t + CROSSFADE_DURATION); // Lowest volume
+    masterGain.connect(ctx.destination);
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+    const filters: BiquadFilterNode[] = [];
+    const noises: AudioBufferSourceNode[] = [];
+    const lfos: OscillatorNode[] = [];
+
+    // A major chord: A3, C#4, E4 (220, 277.18, 329.63)
+    const chordFreqs = [220, 277.18, 329.63];
+
+    chordFreqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+
+        const gain = ctx.createGain();
+        gain.gain.value = 0.25 - i * 0.05;
+
+        // Individual ripple LFO
+        const rippleLfo = ctx.createOscillator();
+        rippleLfo.frequency.value = 0.1 + i * 0.03;
+        const rippleLfoGain = ctx.createGain();
+        rippleLfoGain.gain.value = 0.08;
+        rippleLfo.connect(rippleLfoGain);
+        rippleLfoGain.connect(gain.gain);
+
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(t);
+        rippleLfo.start(t);
+
+        oscillators.push(osc);
+        gains.push(gain);
+        lfos.push(rippleLfo);
+    });
+
+    return { oscillators, gains, filters, noises, lfos, masterGain };
+};
+
+// SUN: Ritual Finale (仪式 Drone + 火焰高频)
+const createSunMusic = (): MusicNodes => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, t);
+    masterGain.gain.linearRampToValueAtTime(0.08, t + CROSSFADE_DURATION);
+    masterGain.connect(ctx.destination);
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+    const filters: BiquadFilterNode[] = [];
+    const noises: AudioBufferSourceNode[] = [];
+    const lfos: OscillatorNode[] = [];
+
+    // Layer 1: Rising drone (starts D2, implies A)
+    const droneOsc = ctx.createOscillator();
+    droneOsc.type = 'sine';
+    droneOsc.frequency.value = 73.42; // D2
+
+    const droneGain = ctx.createGain();
+    droneGain.gain.value = 0.4;
+
+    droneOsc.connect(droneGain);
+    droneGain.connect(masterGain);
+    droneOsc.start(t);
+
+    oscillators.push(droneOsc);
+    gains.push(droneGain);
+
+    // Layer 2: Upper harmonic (A3 for resolution with HOME)
+    const harmOsc = ctx.createOscillator();
+    harmOsc.type = 'sine';
+    harmOsc.frequency.value = 220;
+
+    const harmGain = ctx.createGain();
+    harmGain.gain.value = 0.15;
+
+    harmOsc.connect(harmGain);
+    harmGain.connect(masterGain);
+    harmOsc.start(t);
+
+    oscillators.push(harmOsc);
+    gains.push(harmGain);
+
+    // Layer 3: Fire crackle (highpass filtered noise)
+    const bufferSize = ctx.sampleRate * 15;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1);
+    }
+
+    const fireNoise = ctx.createBufferSource();
+    fireNoise.buffer = buffer;
+    fireNoise.loop = true;
+
+    const fireFilter = ctx.createBiquadFilter();
+    fireFilter.type = 'highpass';
+    fireFilter.frequency.value = 3000;
+
+    const fireGain = ctx.createGain();
+    fireGain.gain.value = 0.06;
+
+    fireNoise.connect(fireFilter);
+    fireFilter.connect(fireGain);
+    fireGain.connect(masterGain);
+    fireNoise.start(t);
+
+    noises.push(fireNoise);
+    filters.push(fireFilter);
+    gains.push(fireGain);
+
+    return { oscillators, gains, filters, noises, lfos, masterGain };
+};
+
+// ===== MAIN CONTROL FUNCTIONS =====
+
+export const startBackgroundMusic = (level: string) => {
+    if (currentMusicLevel === level) return;
+
+    fadeOutCurrentMusic(CROSSFADE_DURATION);
+
+    setTimeout(() => {
+        currentMusicLevel = level;
+        switch (level) {
+            case 'PROLOGUE': currentMusicNodes = createPrologueMusic(); break;
+            case 'LANGUAGE': currentMusicNodes = createLanguageMusic(); break;
+            case 'NAME': currentMusicNodes = createNameMusic(); break;
+            case 'CHEWING': currentMusicNodes = createChewingMusic(); break;
+            case 'WIND': currentMusicNodes = createWindMusic(); break;
+            case 'TRAVEL': currentMusicNodes = createTravelMusic(); break;
+            case 'CONNECTION': currentMusicNodes = createConnectionMusic(); break;
+            case 'HOME': currentMusicNodes = createHomeMusic(); break;
+            case 'SUN': currentMusicNodes = createSunMusic(); break;
+        }
+    }, CROSSFADE_DURATION * 500);
+};
+
+export const stopBackgroundMusic = () => {
+    fadeOutCurrentMusic(1.0);
+    currentMusicLevel = '';
+    currentMusicNodes = null;
+};
+
+// ===== END BACKGROUND MUSIC SYSTEM =====
+
 export const playConnect = () => {
     const ctx = getCtx();
     const t = ctx.currentTime;

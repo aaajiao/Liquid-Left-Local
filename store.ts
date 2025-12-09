@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import * as THREE from 'three';
-import { playBubblePop, playFloodSound, playSunExtinguish, playLeafSuccess, playHomeMelt } from './utils/audio';
+import { playBubblePop, playFloodSound, playSunExtinguish, playLeafSuccess, playHomeMelt, startBackgroundMusic } from './utils/audio';
 
 export interface NodeData {
     id: string;
@@ -599,6 +599,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     advanceNarrative: () => set((state) => ({ narrativeIndex: state.narrativeIndex + 1 })),
 
     startLevel: (level) => {
+        // Start chapter-specific background music with crossfade
+        startBackgroundMusic(level);
+
         let genResult;
         let mode: InteractionMode = 'LURE';
         let seq: string[] = [];
