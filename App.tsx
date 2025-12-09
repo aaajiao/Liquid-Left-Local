@@ -265,9 +265,12 @@ const CameraController = () => {
 
 const App: React.FC = () => {
     const startLevel = useGameStore((state) => state.startLevel);
+    const currentLevel = useGameStore((state) => state.currentLevel);
 
     // Initialize viewport height tracking for mobile browser compatibility
     useViewportHeight();
+
+
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
