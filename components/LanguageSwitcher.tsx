@@ -30,9 +30,18 @@ export const LanguageSwitcher: React.FC = () => {
     const [isIdle, setIsIdle] = useState(true);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-    // Start idle timer on mount
+    // Detect landscape orientation for mobile (same logic as UI.tsx)
+    const [isLandscape, setIsLandscape] = useState(false);
     useEffect(() => {
+        const checkOrientation = () => {
+            setIsLandscape(window.innerWidth > window.innerHeight && window.innerWidth < 1024);
+        };
+        checkOrientation();
+        window.addEventListener('resize', checkOrientation);
+        window.addEventListener('orientationchange', checkOrientation);
         return () => {
+            window.removeEventListener('resize', checkOrientation);
+            window.removeEventListener('orientationchange', checkOrientation);
             if (idleTimerRef.current) {
                 clearTimeout(idleTimerRef.current);
             }
@@ -89,6 +98,23 @@ export const LanguageSwitcher: React.FC = () => {
     // Calculate opacity: idle = 0.2, not idle but not hovered = 0.5, hovered = 1
     const opacity = isIdle ? 0.2 : (isHovered ? 1 : 0.5);
 
+    // Responsive sizes based on device/orientation
+    // Desktop: 46px, Mobile portrait: 40px, Mobile landscape: 36px
+    const buttonSize = isLandscape ? 36 : (typeof window !== 'undefined' && window.innerWidth < 768 ? 40 : 46);
+
+    // Responsive font size
+    // Desktop: A=16px, 文=14px; Mobile portrait: A=14px, 文=12px; Landscape: A=12px, 文=11px
+    const fontSize = isLandscape
+        ? (lang === 'zh' ? '12px' : '11px')
+        : (typeof window !== 'undefined' && window.innerWidth < 768
+            ? (lang === 'zh' ? '14px' : '12px')
+            : (lang === 'zh' ? '16px' : '14px'));
+
+    // Responsive SVG size
+    // Desktop: 18, Mobile portrait: 14, Landscape: 12
+    const svgSize = isLandscape ? 12 : (typeof window !== 'undefined' && window.innerWidth < 768 ? 14 : 18);
+    const svgCenter = svgSize / 2;
+
     return (
         <div
             className="fixed z-50 pointer-events-auto"
@@ -102,8 +128,10 @@ export const LanguageSwitcher: React.FC = () => {
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
                 onTouchEnd={handleTouchEnd}
-                className="relative flex items-center justify-center w-12 h-12 rounded-full overflow-visible"
+                className="relative flex items-center justify-center rounded-full overflow-visible"
                 style={{
+                    width: buttonSize,
+                    height: buttonSize,
                     background: 'radial-gradient(circle at 30% 30%, rgba(147, 197, 253, 0.3), rgba(96, 165, 250, 0.15))',
                     backdropFilter: 'blur(10px)',
                     WebkitBackdropFilter: 'blur(10px)',
@@ -120,17 +148,17 @@ export const LanguageSwitcher: React.FC = () => {
             >
                 {/* Water surface effect - concentric rings */}
                 <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 18 18"
+                    width={svgSize}
+                    height={svgSize}
+                    viewBox={`0 0 ${svgSize} ${svgSize}`}
                     style={{ position: 'absolute', opacity: isHovered ? 0.8 : 0.4, transition: 'opacity 0.3s' }}
                 >
-                    <circle cx="9" cy="9" r="2" fill="none" stroke="rgba(147, 197, 253, 0.6)" strokeWidth="0.5">
-                        <animate attributeName="r" values="2;6;2" dur="3s" repeatCount="indefinite" />
+                    <circle cx={svgCenter} cy={svgCenter} r={svgSize * 0.11} fill="none" stroke="rgba(147, 197, 253, 0.6)" strokeWidth="0.5">
+                        <animate attributeName="r" values={`${svgSize * 0.11};${svgSize * 0.33};${svgSize * 0.11}`} dur="3s" repeatCount="indefinite" />
                         <animate attributeName="opacity" values="0.6;0;0.6" dur="3s" repeatCount="indefinite" />
                     </circle>
-                    <circle cx="9" cy="9" r="4" fill="none" stroke="rgba(147, 197, 253, 0.4)" strokeWidth="0.5">
-                        <animate attributeName="r" values="4;8;4" dur="3s" repeatCount="indefinite" begin="0.5s" />
+                    <circle cx={svgCenter} cy={svgCenter} r={svgSize * 0.22} fill="none" stroke="rgba(147, 197, 253, 0.4)" strokeWidth="0.5">
+                        <animate attributeName="r" values={`${svgSize * 0.22};${svgSize * 0.44};${svgSize * 0.22}`} dur="3s" repeatCount="indefinite" begin="0.5s" />
                         <animate attributeName="opacity" values="0.4;0;0.4" dur="3s" repeatCount="indefinite" begin="0.5s" />
                     </circle>
                 </svg>
@@ -144,7 +172,7 @@ export const LanguageSwitcher: React.FC = () => {
                     transition={{ duration: 0.3, ease: 'easeOut' }}
                     style={{
                         fontFamily: lang === 'zh' ? "'Quicksand', sans-serif" : "'Noto Serif SC', serif",
-                        fontSize: lang === 'zh' ? '16px' : '14px',
+                        fontSize: fontSize,
                         fontWeight: 500,
                         color: 'rgba(30, 64, 175, 0.8)',
                         textShadow: '0 1px 2px rgba(255, 255, 255, 0.8)',

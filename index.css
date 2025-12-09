@@ -14,6 +14,7 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
+
   *,
   ::after,
   ::before,
@@ -27,5 +28,12 @@ body {
   margin: 0;
   padding: 0;
   background-color: #fdf4f5;
+  cursor: none;
 }
 
+/* Hide system cursor on all elements to prevent overlap with game cursor */
+*,
+*::before,
+*::after {
+  cursor: none !important;
+}
