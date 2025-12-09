@@ -28,7 +28,7 @@ export const LanguageSwitcher: React.FC = () => {
     const [ripples, setRipples] = useState<number[]>([]);
     const [isHovered, setIsHovered] = useState(false);
     const [isIdle, setIsIdle] = useState(true);
-    const idleTimerRef = useRef<ReturnType<typeof setTimeout>>();
+    const idleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     // Start idle timer on mount
     useEffect(() => {

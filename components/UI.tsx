@@ -96,8 +96,8 @@ export const UI: React.FC = () => {
 
         {/* Narrative Text Container - Centered in both orientations */}
         <div className={`w-full px-2 md:px-4 text-center pointer-events-auto mx-auto ${isLandscape
-            ? 'max-w-xl mb-2'
-            : 'max-w-3xl mb-10 md:mb-16'
+          ? 'max-w-xl mb-2'
+          : 'max-w-3xl mb-10 md:mb-16'
           }`}>
           <AnimatePresence mode='wait'>
             <motion.div
@@ -147,7 +147,7 @@ export const UI: React.FC = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   onClick={(e) => { e.stopPropagation(); handleNextLevel(); }}
-                  className="mt-4 md:mt-8 text-pink-500 border border-pink-300 px-4 py-1.5 md:px-6 md:py-2 rounded-full hover:bg-pink-50 transition-colors"
+                  className="mt-4 md:mt-8 text-pink-500 border border-pink-300 px-4 py-1.5 md:px-6 md:py-2 rounded-full hover:bg-pink-50 active:bg-pink-100 active:text-pink-600 active:border-pink-400 transition-colors"
                   style={{ fontSize: buttonFontSize }}
                 >
                   {translations.ui.proceed}
@@ -158,7 +158,7 @@ export const UI: React.FC = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1, scale: 1.1 }}
                   onClick={(e) => { e.stopPropagation(); resetGame(); }}
-                  className="mt-4 md:mt-8 text-blue-400 hover:text-blue-600"
+                  className="mt-4 md:mt-8 text-blue-400 hover:text-blue-600 active:text-blue-700"
                   style={{ fontSize: buttonFontSize }}
                 >
                   [ {translations.ui.rebirth} ]
