@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import * as THREE from 'three';
-import { playBubblePop, playFloodSound, playSunExtinguish, playLeafSuccess } from './utils/audio';
+import { playBubblePop, playFloodSound, playSunExtinguish, playLeafSuccess, playHomeMelt } from './utils/audio';
 
 export interface NodeData {
     id: string;
@@ -528,6 +528,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     triggerHomeMelt: () => {
         set({ isHomeMelting: true });
+        playHomeMelt(); // Play melt sound effect
 
         // Animate melt progress over 5 seconds (to sync with UI text fade)
         const duration = 5000; // 5 seconds

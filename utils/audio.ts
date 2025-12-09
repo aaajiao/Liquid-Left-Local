@@ -473,3 +473,103 @@ export const playPaSound = (pitchVariation: number = 0) => {
     osc.start(t);
     osc.stop(t + 0.06);
 };
+
+// Home Chapter Melt Sound - Water drop merging into lake (5 seconds)
+export const playHomeMelt = () => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const duration = 5;
+
+    // --- Layer 1: Deep Water Resonance (Low drone) ---
+    const droneOsc = ctx.createOscillator();
+    droneOsc.type = 'sine';
+    droneOsc.frequency.setValueAtTime(80, t);
+    droneOsc.frequency.exponentialRampToValueAtTime(40, t + duration);
+
+    const droneGain = ctx.createGain();
+    droneGain.gain.setValueAtTime(0, t);
+    droneGain.gain.linearRampToValueAtTime(0.15, t + 0.5);
+    droneGain.gain.linearRampToValueAtTime(0.1, t + duration * 0.7);
+    droneGain.gain.linearRampToValueAtTime(0, t + duration);
+
+    const droneFilter = ctx.createBiquadFilter();
+    droneFilter.type = 'lowpass';
+    droneFilter.frequency.value = 200;
+
+    droneOsc.connect(droneFilter);
+    droneFilter.connect(droneGain);
+    droneGain.connect(ctx.destination);
+    droneOsc.start(t);
+    droneOsc.stop(t + duration);
+
+    // --- Layer 2: Water Bubbling (Filtered noise) ---
+    const bufferSize = ctx.sampleRate * duration;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    // Pink noise for organic water sound
+    let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99765 * b0 + white * 0.0990460;
+        b1 = 0.96300 * b1 + white * 0.2965164;
+        b2 = 0.57000 * b2 + white * 1.0526913;
+        data[i] = (b0 + b1 + b2 + white * 0.1848) * 0.05;
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(400, t);
+    noiseFilter.frequency.exponentialRampToValueAtTime(100, t + duration);
+    noiseFilter.Q.value = 2;
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0, t);
+    noiseGain.gain.linearRampToValueAtTime(0.3, t + 1);
+    noiseGain.gain.linearRampToValueAtTime(0.15, t + duration * 0.6);
+    noiseGain.gain.linearRampToValueAtTime(0, t + duration);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(t);
+
+    // --- Layer 3: Harmonic Shimmer (Ethereal overtones) ---
+    const shimmerFreqs = [220, 330, 440]; // A3, E4, A4 (harmonics)
+    shimmerFreqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.5, t + duration);
+
+        const gain = ctx.createGain();
+        const startDelay = i * 0.3;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.03, t + startDelay + 0.5);
+        gain.gain.linearRampToValueAtTime(0.02, t + duration * 0.5);
+        gain.gain.linearRampToValueAtTime(0, t + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t + startDelay);
+        osc.stop(t + duration);
+    });
+
+    // --- Layer 4: Descending Drop (Initial splash) ---
+    const dropOsc = ctx.createOscillator();
+    dropOsc.type = 'sine';
+    dropOsc.frequency.setValueAtTime(600, t);
+    dropOsc.frequency.exponentialRampToValueAtTime(80, t + 1.5);
+
+    const dropGain = ctx.createGain();
+    dropGain.gain.setValueAtTime(0.2, t);
+    dropGain.gain.exponentialRampToValueAtTime(0.01, t + 1.5);
+
+    dropOsc.connect(dropGain);
+    dropGain.connect(ctx.destination);
+    dropOsc.start(t);
+    dropOsc.stop(t + 1.5);
+};
