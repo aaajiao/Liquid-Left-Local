@@ -18,8 +18,8 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#fdf4f5",
-  "background_color": "#fdf4f5",
+  "theme_color": "#000000",
+  "background_color": "#000000",
   "display": "fullscreen",
   "orientation": "any"
 }

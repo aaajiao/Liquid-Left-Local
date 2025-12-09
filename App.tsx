@@ -57,6 +57,23 @@ const LEVEL_THEMES: Record<LevelType, { bg: string, fog: string }> = {
     SUN: { bg: '#2a0a0a', fog: '#8b0000' }
 };
 
+// Hook to update browser theme color based on current game level
+const useThemeColor = () => {
+    const currentLevel = useGameStore((state) => state.currentLevel);
+
+    useEffect(() => {
+        const theme = LEVEL_THEMES[currentLevel];
+        const meta = document.getElementById('theme-color-meta');
+
+        if (meta) {
+            meta.setAttribute('content', theme.bg);
+        }
+
+        // Also update body background to ensure iOS Safari translucency looks correct
+        document.body.style.backgroundColor = theme.bg;
+    }, [currentLevel]);
+};
+
 const CustomCursor: React.FC = () => {
     const [pos, setPos] = useState({ x: -100, y: -100 });
     const { isMouseDown, hoveredNodeId, isInteractiveHover } = useGameStore();
@@ -268,6 +285,8 @@ const App: React.FC = () => {
 
     // Initialize viewport height tracking for mobile browser compatibility
     useViewportHeight();
+    // Update theme color based on current game level
+    useThemeColor();
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (['=', '-', '+', '_'].includes(e.key)) return;

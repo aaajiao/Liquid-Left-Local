@@ -8,21 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#fdf4f5" id="theme-color-meta">
-  <script>
-    // iOS Safari dark mode theme color fix
-    (function () {
-      var meta = document.getElementById('theme-color-meta');
-      var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (isDark && meta) meta.setAttribute('content', '#000000');
-      // Listen for changes
-      if (window.matchMedia) {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
-          if (meta) meta.setAttribute('content', e.matches ? '#000000' : '#fdf4f5');
-        });
-      }
-    })();
-  </script>
+  <meta name="theme-color" content="#000000" id="theme-color-meta">
   <title>Liquid Left 剩余液体</title>
   <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
@@ -41,7 +27,7 @@
       height: 100dvh;
       width: 100vw;
       overflow: hidden;
-      background-color: #fdf4f5;
+      background-color: #000000;
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
