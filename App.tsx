@@ -11,6 +11,39 @@ import { UI } from './components/UI';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { I18nProvider } from './contexts/I18nContext';
 
+// Hook to get the actual visible viewport height (accounting for mobile browser UI)
+const useViewportHeight = () => {
+    useEffect(() => {
+        const updateViewportHeight = () => {
+            // Use visualViewport API for accurate height on mobile browsers
+            const vh = window.visualViewport?.height || window.innerHeight;
+            document.documentElement.style.setProperty('--viewport-height', `${vh}px`);
+        };
+
+        // Initial update
+        updateViewportHeight();
+
+        // Listen for visualViewport resize events (most accurate for mobile)
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateViewportHeight);
+            window.visualViewport.addEventListener('scroll', updateViewportHeight);
+        }
+        // Fallback to window resize
+        window.addEventListener('resize', updateViewportHeight);
+        // Also update on orientation change
+        window.addEventListener('orientationchange', updateViewportHeight);
+
+        return () => {
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', updateViewportHeight);
+                window.visualViewport.removeEventListener('scroll', updateViewportHeight);
+            }
+            window.removeEventListener('resize', updateViewportHeight);
+            window.removeEventListener('orientationchange', updateViewportHeight);
+        };
+    }, []);
+};
+
 const LEVEL_THEMES: Record<LevelType, { bg: string, fog: string }> = {
     PROLOGUE: { bg: '#2a0a10', fog: '#501020' },
     LANGUAGE: { bg: '#fff0f5', fog: '#ffc0cb' },
@@ -213,6 +246,9 @@ const CameraController = () => {
 const App: React.FC = () => {
     const startLevel = useGameStore((state) => state.startLevel);
 
+    // Initialize viewport height tracking for mobile browser compatibility
+    useViewportHeight();
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (['=', '-', '+', '_'].includes(e.key)) return;
@@ -234,7 +270,10 @@ const App: React.FC = () => {
 
     return (
         <I18nProvider>
-            <div className="w-full h-screen bg-[#fdf4f5] relative overflow-hidden cursor-none">
+            <div
+                className="w-full bg-[#fdf4f5] relative overflow-hidden cursor-none"
+                style={{ height: 'var(--viewport-height, 100dvh)' }}
+            >
                 <CustomCursor />
                 <LanguageSwitcher />
                 <UI />
