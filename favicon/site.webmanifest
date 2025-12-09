@@ -1,6 +1,9 @@
 {
-  "name": "Liquid Left",
-  "short_name": "LL",
+  "name": "Liquid Left 剩余液体",
+  "short_name": "Liquid Left",
+  "description": "A 2.5D atmospheric narrative exploration game. Play as didi, a sentient droplet navigating a breathing, organic world.",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
     {
       "src": "/favicon/web-app-manifest-192x192.png",
@@ -15,7 +18,8 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#d2f8ff",
-  "background_color": "#d2f8ff",
-  "display": "standalone"
+  "theme_color": "#fdf4f5",
+  "background_color": "#fdf4f5",
+  "display": "fullscreen",
+  "orientation": "any"
 }

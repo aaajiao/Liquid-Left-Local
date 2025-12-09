@@ -10,6 +10,7 @@ import { PuzzleManager } from './components/Puzzle';
 import { UI } from './components/UI';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { I18nProvider } from './contexts/I18nContext';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 // Hook to get the actual visible viewport height (accounting for mobile browser UI)
 const useViewportHeight = () => {
@@ -114,19 +115,34 @@ const DynamicBackground: React.FC = () => {
     return null;
 };
 
-// Hook to determine scale factor based on device type (Phone vs Tablet vs Desktop)
+// Hook to determine scale factor based on device type and orientation
 const useScreenScaleFactor = () => {
     const [scaleFactor, setScaleFactor] = useState(1);
+    const [isLandscape, setIsLandscape] = useState(false);
 
     useEffect(() => {
         const updateScale = () => {
             const width = window.innerWidth;
+            const height = window.innerHeight;
+            const landscape = width > height;
+            setIsLandscape(landscape);
+
             if (width < 768) {
-                // Phone (Portrait dominant): Zoom out significantly to fit width
-                setScaleFactor(0.65);
+                // Phone
+                if (landscape) {
+                    // Landscape phone: Need more zoom out to see the scene properly
+                    setScaleFactor(0.5);
+                } else {
+                    // Portrait phone: Standard mobile zoom
+                    setScaleFactor(0.65);
+                }
             } else if (width < 1024) {
-                // Tablet (iPad Portrait/Small Landscape): Slight zoom out
-                setScaleFactor(0.85);
+                // Tablet
+                if (landscape) {
+                    setScaleFactor(0.75);
+                } else {
+                    setScaleFactor(0.85);
+                }
             } else {
                 // Desktop
                 setScaleFactor(1.0);
@@ -134,11 +150,15 @@ const useScreenScaleFactor = () => {
         };
 
         window.addEventListener('resize', updateScale);
+        window.addEventListener('orientationchange', updateScale);
         updateScale(); // Initial call
-        return () => window.removeEventListener('resize', updateScale);
+        return () => {
+            window.removeEventListener('resize', updateScale);
+            window.removeEventListener('orientationchange', updateScale);
+        };
     }, []);
 
-    return scaleFactor;
+    return { scaleFactor, isLandscape };
 };
 
 const CameraController = () => {
@@ -147,7 +167,7 @@ const CameraController = () => {
     const currentLevel = useGameStore((state) => state.currentLevel);
     const controlsRef = useRef<any>(null);
     const [isAltPressed, setIsAltPressed] = useState(false);
-    const scaleFactor = useScreenScaleFactor();
+    const { scaleFactor } = useScreenScaleFactor();
 
     // Detect mobile for specific tuning (controls sensitivity)
     const isTouch = typeof window !== 'undefined' && window.matchMedia("(pointer: coarse)").matches;
@@ -277,6 +297,7 @@ const App: React.FC = () => {
                 <CustomCursor />
                 <LanguageSwitcher />
                 <UI />
+                <PWAInstallPrompt />
                 <Canvas shadows dpr={[1, 2]} onContextMenu={(e) => e.preventDefault()}>
                     <Suspense fallback={null}>
                         <DynamicBackground />

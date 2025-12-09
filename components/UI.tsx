@@ -53,14 +53,29 @@ export const UI: React.FC = () => {
     else if (currentLevel === 'SUN') resetGame();
   };
 
+  // Detect landscape orientation for mobile
+  const [isLandscape, setIsLandscape] = React.useState(false);
+  React.useEffect(() => {
+    const checkOrientation = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight && window.innerWidth < 1024);
+    };
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
+
   return (
     <>
       <div
-        className="absolute inset-0 pointer-events-none flex flex-col justify-between z-10 font-serif select-none p-3 md:p-6 lg:p-8"
+        className="absolute inset-0 pointer-events-none z-10 font-serif select-none p-3 md:p-6 lg:p-8 flex flex-col justify-between"
         onClick={() => resumeAudio()}
         style={{
           paddingTop: 'calc(0.75rem + env(safe-area-inset-top))',
-          paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
+          paddingBottom: isLandscape ? 'calc(0.5rem + env(safe-area-inset-bottom))' : 'calc(1.5rem + env(safe-area-inset-bottom))',
           paddingLeft: 'calc(0.75rem + env(safe-area-inset-left))',
           paddingRight: 'calc(0.75rem + env(safe-area-inset-right))',
         }}
@@ -70,7 +85,7 @@ export const UI: React.FC = () => {
           <motion.h1
             key={currentLevel}
             className="font-bold tracking-widest uppercase text-pink-900"
-            style={{ fontSize: titleFontSize }}
+            style={{ fontSize: isLandscape ? 'clamp(0.6rem, 1.2vw, 1rem)' : titleFontSize }}
             initial={{ opacity: 0.7 }}
             animate={{ opacity: 0.15 }}
             transition={{ delay: 3, duration: 4, ease: "easeOut" }}
@@ -79,8 +94,11 @@ export const UI: React.FC = () => {
           </motion.h1>
         </div>
 
-        {/* Narrative Text Container - Responsive with landscape handling */}
-        <div className="w-full max-w-3xl px-2 md:px-4 text-center pointer-events-auto mx-auto mb-10 md:mb-16">
+        {/* Narrative Text Container - Centered in both orientations */}
+        <div className={`w-full px-2 md:px-4 text-center pointer-events-auto mx-auto ${isLandscape
+            ? 'max-w-xl mb-2'
+            : 'max-w-3xl mb-10 md:mb-16'
+          }`}>
           <AnimatePresence mode='wait'>
             <motion.div
               key={`${currentLevel}-${text}`}
@@ -107,8 +125,13 @@ export const UI: React.FC = () => {
 
                 return (
                   <motion.p
-                    className="text-slate-800/80 font-medium leading-relaxed min-h-[4rem] cursor-default"
-                    style={{ fontSize: narrativeFontSize }}
+                    className={`text-slate-800/80 font-medium leading-relaxed cursor-default ${isLandscape ? 'min-h-[2rem]' : 'min-h-[4rem]'
+                      }`}
+                    style={{
+                      fontSize: isLandscape
+                        ? 'clamp(0.65rem, 1.5vw, 0.9rem)'
+                        : narrativeFontSize
+                    }}
                     initial={{ textShadow: '0 0 0px transparent' }}
                     whileHover={{
                       textShadow: `0 0 8px ${glowColor}, 0 0 16px ${glowColor}, 0 0 24px ${glowColor}`,
