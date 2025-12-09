@@ -128,7 +128,10 @@ export const PWAInstallPrompt: React.FC = () => {
                         paddingBottom: 'env(safe-area-inset-bottom)',
                     }}
                 >
-                    <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-4 mx-auto max-w-sm border border-pink-100">
+                    <div
+                        className="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-4 mx-auto max-w-sm border border-pink-100"
+                        style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}
+                    >
                         <div className="flex items-start gap-3">
                             {/* App Icon */}
                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center shrink-0 shadow-sm">
