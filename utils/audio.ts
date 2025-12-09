@@ -126,20 +126,20 @@ const createPrologueMusic = (): MusicNodes => {
     const noises: AudioBufferSourceNode[] = [];
     const lfos: OscillatorNode[] = [];
 
-    // Layer 1: Heartbeat bass (55Hz A1)
+    // Layer 1: Heartbeat bass (110Hz A2 - audible on most speakers)
     const heartOsc = ctx.createOscillator();
     heartOsc.type = 'sine';
-    heartOsc.frequency.value = 55;
+    heartOsc.frequency.value = 110; // Raised from 55Hz to be audible
 
     const heartGain = ctx.createGain();
-    heartGain.gain.value = 0.4;
+    heartGain.gain.value = 0.35;
 
     // LFO for heartbeat rhythm (~1Hz)
     const heartLfo = ctx.createOscillator();
     heartLfo.type = 'sine';
     heartLfo.frequency.value = 1.0;
     const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.25;
+    lfoGain.gain.value = 0.2;
     heartLfo.connect(lfoGain);
     lfoGain.connect(heartGain.gain);
 
@@ -152,7 +152,28 @@ const createPrologueMusic = (): MusicNodes => {
     gains.push(heartGain);
     lfos.push(heartLfo);
 
-    // Layer 2: Pink noise (womb ambience)
+    // Layer 2: Octave harmonic (220Hz A3 - warmth)
+    const harmOsc = ctx.createOscillator();
+    harmOsc.type = 'sine';
+    harmOsc.frequency.value = 220;
+
+    const harmGain = ctx.createGain();
+    harmGain.gain.value = 0.12;
+
+    // Same LFO for synchronized pulsing
+    const harmLfoGain = ctx.createGain();
+    harmLfoGain.gain.value = 0.08;
+    heartLfo.connect(harmLfoGain);
+    harmLfoGain.connect(harmGain.gain);
+
+    harmOsc.connect(harmGain);
+    harmGain.connect(masterGain);
+    harmOsc.start(t);
+
+    oscillators.push(harmOsc);
+    gains.push(harmGain);
+
+    // Layer 3: Pink noise (womb ambience) - raised filter for presence
     const noiseBuffer = createPinkNoiseBuffer(ctx, 8);
     const noise = ctx.createBufferSource();
     noise.buffer = noiseBuffer;
@@ -160,10 +181,10 @@ const createPrologueMusic = (): MusicNodes => {
 
     const noiseFilter = ctx.createBiquadFilter();
     noiseFilter.type = 'lowpass';
-    noiseFilter.frequency.value = 200;
+    noiseFilter.frequency.value = 400; // Raised from 200Hz
 
     const noiseGain = ctx.createGain();
-    noiseGain.gain.value = 0.5;
+    noiseGain.gain.value = 0.4;
 
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
@@ -235,13 +256,13 @@ const createLanguageMusic = (): MusicNodes => {
     return { oscillators, gains, filters, noises, lfos, masterGain };
 };
 
-// NAME: Void Ambience (深渊 Drone + 高频点缀)
+// NAME: Void Ambience (空灵虚无 + 明显扫频)
 const createNameMusic = (): MusicNodes => {
     const ctx = getCtx();
     const t = ctx.currentTime;
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0, t);
-    masterGain.gain.linearRampToValueAtTime(0.04, t + CROSSFADE_DURATION); // Lower volume
+    masterGain.gain.linearRampToValueAtTime(0.07, t + CROSSFADE_DURATION);
     masterGain.connect(ctx.destination);
 
     const oscillators: OscillatorNode[] = [];
@@ -250,22 +271,72 @@ const createNameMusic = (): MusicNodes => {
     const noises: AudioBufferSourceNode[] = [];
     const lfos: OscillatorNode[] = [];
 
-    // Layer 1: Deep drone (40Hz)
-    const droneOsc = ctx.createOscillator();
-    droneOsc.type = 'sine';
-    droneOsc.frequency.value = 40;
+    // Layer 1: Ethereal high pad (440Hz A4 - pure and airy)
+    const padOsc = ctx.createOscillator();
+    padOsc.type = 'sine';
+    padOsc.frequency.value = 440;
 
-    const droneGain = ctx.createGain();
-    droneGain.gain.value = 0.6;
+    const padGain = ctx.createGain();
+    padGain.gain.value = 0.15;
 
-    droneOsc.connect(droneGain);
-    droneGain.connect(masterGain);
-    droneOsc.start(t);
+    // Very slow breathing for ethereal feel
+    const padLfo = ctx.createOscillator();
+    padLfo.frequency.value = 0.1;
+    const padLfoGain = ctx.createGain();
+    padLfoGain.gain.value = 0.08;
+    padLfo.connect(padLfoGain);
+    padLfoGain.connect(padGain.gain);
 
-    oscillators.push(droneOsc);
-    gains.push(droneGain);
+    padOsc.connect(padGain);
+    padGain.connect(masterGain);
+    padOsc.start(t);
+    padLfo.start(t);
 
-    // Layer 2: Bandpass scanning noise
+    oscillators.push(padOsc);
+    gains.push(padGain);
+    lfos.push(padLfo);
+
+    // Layer 2: Higher ethereal shimmer (660Hz E5 - perfect fifth)
+    const shimmerOsc = ctx.createOscillator();
+    shimmerOsc.type = 'sine';
+    shimmerOsc.frequency.value = 660;
+
+    const shimmerGain = ctx.createGain();
+    shimmerGain.gain.value = 0.08;
+
+    // Slightly different tremolo for movement
+    const shimmerLfo = ctx.createOscillator();
+    shimmerLfo.frequency.value = 0.15;
+    const shimmerLfoGain = ctx.createGain();
+    shimmerLfoGain.gain.value = 0.05;
+    shimmerLfo.connect(shimmerLfoGain);
+    shimmerLfoGain.connect(shimmerGain.gain);
+
+    shimmerOsc.connect(shimmerGain);
+    shimmerGain.connect(masterGain);
+    shimmerOsc.start(t);
+    shimmerLfo.start(t);
+
+    oscillators.push(shimmerOsc);
+    gains.push(shimmerGain);
+    lfos.push(shimmerLfo);
+
+    // Layer 3: Very high ghost tone (1320Hz - octave of 660)
+    const ghostOsc = ctx.createOscillator();
+    ghostOsc.type = 'sine';
+    ghostOsc.frequency.value = 1320;
+
+    const ghostGain = ctx.createGain();
+    ghostGain.gain.value = 0.03;
+
+    ghostOsc.connect(ghostGain);
+    ghostGain.connect(masterGain);
+    ghostOsc.start(t);
+
+    oscillators.push(ghostOsc);
+    gains.push(ghostGain);
+
+    // Layer 4: PROMINENT SCANNING FILTER - the signature sound
     const noiseBuffer = createPinkNoiseBuffer(ctx, 10);
     const noise = ctx.createBufferSource();
     noise.buffer = noiseBuffer;
@@ -273,19 +344,19 @@ const createNameMusic = (): MusicNodes => {
 
     const scanFilter = ctx.createBiquadFilter();
     scanFilter.type = 'bandpass';
-    scanFilter.Q.value = 5;
-    scanFilter.frequency.value = 400;
+    scanFilter.Q.value = 12; // High Q for sharp, obvious resonance
+    scanFilter.frequency.value = 800; // Center frequency
 
-    // LFO to scan frequency
+    // LFO for very obvious frequency sweep (200Hz to 1400Hz range)
     const scanLfo = ctx.createOscillator();
-    scanLfo.frequency.value = 0.05;
+    scanLfo.frequency.value = 0.04; // Slow sweep - 25 second cycle
     const scanLfoGain = ctx.createGain();
-    scanLfoGain.gain.value = 300;
+    scanLfoGain.gain.value = 600; // Wide sweep range
     scanLfo.connect(scanLfoGain);
     scanLfoGain.connect(scanFilter.frequency);
 
     const noiseGain = ctx.createGain();
-    noiseGain.gain.value = 0.3;
+    noiseGain.gain.value = 0.5; // Much louder for prominence
 
     noise.connect(scanFilter);
     scanFilter.connect(noiseGain);
@@ -297,6 +368,21 @@ const createNameMusic = (): MusicNodes => {
     filters.push(scanFilter);
     gains.push(noiseGain);
     lfos.push(scanLfo);
+
+    // Layer 5: Sub-bass presence (110Hz for body, subtle)
+    const subOsc = ctx.createOscillator();
+    subOsc.type = 'sine';
+    subOsc.frequency.value = 110;
+
+    const subGain = ctx.createGain();
+    subGain.gain.value = 0.1;
+
+    subOsc.connect(subGain);
+    subGain.connect(masterGain);
+    subOsc.start(t);
+
+    oscillators.push(subOsc);
+    gains.push(subGain);
 
     return { oscillators, gains, filters, noises, lfos, masterGain };
 };
@@ -429,19 +515,19 @@ const createWindMusic = (): MusicNodes => {
     gains.push(windGain);
     lfos.push(windLfo);
 
-    // Layer 2: Threatening low pulse
+    // Layer 2: PROMINENT Threatening pulse (more audible)
     const threatOsc = ctx.createOscillator();
     threatOsc.type = 'sine';
-    threatOsc.frequency.value = 50;
+    threatOsc.frequency.value = 100; // Raised from 50Hz for audibility
 
     const threatGain = ctx.createGain();
-    threatGain.gain.value = 0.2;
+    threatGain.gain.value = 0.4; // Doubled from 0.2
 
-    // Irregular pulse
+    // Faster, more aggressive pulsing
     const threatLfo = ctx.createOscillator();
-    threatLfo.frequency.value = 0.8;
+    threatLfo.frequency.value = 1.5; // Faster pulse (was 0.8)
     const threatLfoGain = ctx.createGain();
-    threatLfoGain.gain.value = 0.15;
+    threatLfoGain.gain.value = 0.3; // Deeper modulation (was 0.15)
     threatLfo.connect(threatLfoGain);
     threatLfoGain.connect(threatGain.gain);
 
@@ -454,16 +540,38 @@ const createWindMusic = (): MusicNodes => {
     gains.push(threatGain);
     lfos.push(threatLfo);
 
+    // Layer 3: Second harmonic threat (200Hz for fullness)
+    const threat2Osc = ctx.createOscillator();
+    threat2Osc.type = 'sine';
+    threat2Osc.frequency.value = 200;
+
+    const threat2Gain = ctx.createGain();
+    threat2Gain.gain.value = 0.15;
+
+    // Same LFO drives both for cohesion
+    const threat2LfoGain = ctx.createGain();
+    threat2LfoGain.gain.value = 0.12;
+    threatLfo.connect(threat2LfoGain);
+    threat2LfoGain.connect(threat2Gain.gain);
+
+    threat2Osc.connect(threat2Gain);
+    threat2Gain.connect(masterGain);
+    threat2Osc.start(t);
+
+    oscillators.push(threat2Osc);
+    gains.push(threat2Gain);
+    lfos.push(threatLfo);
+
     return { oscillators, gains, filters, noises, lfos, masterGain };
 };
 
-// TRAVEL: Emotional Flow (情感 Pad + 空旷)
+// TRAVEL: Emotional Flow (情感 Pad + 明显呼吸)
 const createTravelMusic = (): MusicNodes => {
     const ctx = getCtx();
     const t = ctx.currentTime;
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0, t);
-    masterGain.gain.linearRampToValueAtTime(0.05, t + CROSSFADE_DURATION);
+    masterGain.gain.linearRampToValueAtTime(0.08, t + CROSSFADE_DURATION); // Raised from 0.05
     masterGain.connect(ctx.destination);
 
     const oscillators: OscillatorNode[] = [];
@@ -475,13 +583,25 @@ const createTravelMusic = (): MusicNodes => {
     // D minor chord: D3, F3, A3 (146.8, 174.6, 220)
     const chordFreqs = [146.83, 174.61, 220];
 
+    // Create main breathing LFO first (shared)
+    const breathLfo = ctx.createOscillator();
+    breathLfo.frequency.value = 0.08; // ~12 second cycle
+    breathLfo.start(t);
+    lfos.push(breathLfo);
+
     chordFreqs.forEach((freq, i) => {
         const osc = ctx.createOscillator();
         osc.type = 'sine';
         osc.frequency.value = freq;
 
         const gain = ctx.createGain();
-        gain.gain.value = 0.2 - i * 0.03;
+        gain.gain.value = 0.25 - i * 0.03; // Slightly higher base
+
+        // Individual breathing modulation per note (phase offset for organic feel)
+        const noteLfoGain = ctx.createGain();
+        noteLfoGain.gain.value = 0.15 + i * 0.03; // Deep modulation, varies per note
+        breathLfo.connect(noteLfoGain);
+        noteLfoGain.connect(gain.gain);
 
         osc.connect(gain);
         gain.connect(masterGain);
@@ -491,27 +611,27 @@ const createTravelMusic = (): MusicNodes => {
         gains.push(gain);
     });
 
-    // Slow breathing LFO on master
-    const breathLfo = ctx.createOscillator();
-    breathLfo.frequency.value = 0.08;
-    const breathLfoGain = ctx.createGain();
-    breathLfoGain.gain.value = 0.02;
-    breathLfo.connect(breathLfoGain);
-    breathLfoGain.connect(masterGain.gain);
-    breathLfo.start(t);
+    // Additional slow master volume breathing
+    const masterBreathLfo = ctx.createOscillator();
+    masterBreathLfo.frequency.value = 0.05; // Even slower ~20 second cycle
+    const masterBreathLfoGain = ctx.createGain();
+    masterBreathLfoGain.gain.value = 0.04; // Noticeable master swell
+    masterBreathLfo.connect(masterBreathLfoGain);
+    masterBreathLfoGain.connect(masterGain.gain);
+    masterBreathLfo.start(t);
 
-    lfos.push(breathLfo);
+    lfos.push(masterBreathLfo);
 
     return { oscillators, gains, filters, noises, lfos, masterGain };
 };
 
-// CONNECTION: Bone Resonance (骨骼共振 + 金属泛音)
+// CONNECTION: Bone Resonance (骨骼共振 + 明显金属泛音)
 const createConnectionMusic = (): MusicNodes => {
     const ctx = getCtx();
     const t = ctx.currentTime;
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0, t);
-    masterGain.gain.linearRampToValueAtTime(MUSIC_MASTER_VOLUME, t + CROSSFADE_DURATION);
+    masterGain.gain.linearRampToValueAtTime(0.08, t + CROSSFADE_DURATION); // Raised
     masterGain.connect(ctx.destination);
 
     const oscillators: OscillatorNode[] = [];
@@ -520,19 +640,19 @@ const createConnectionMusic = (): MusicNodes => {
     const noises: AudioBufferSourceNode[] = [];
     const lfos: OscillatorNode[] = [];
 
-    // Layer 1: Bone drone (65Hz C2)
+    // Layer 1: Bone drone (130Hz C3 - raised for audibility)
     const boneOsc = ctx.createOscillator();
     boneOsc.type = 'sine';
-    boneOsc.frequency.value = 65;
+    boneOsc.frequency.value = 130; // Raised from 65Hz
 
     const boneGain = ctx.createGain();
-    boneGain.gain.value = 0.4;
+    boneGain.gain.value = 0.3;
 
     // Breathing LFO
     const boneLfo = ctx.createOscillator();
-    boneLfo.frequency.value = 0.15;
+    boneLfo.frequency.value = 0.12;
     const boneLfoGain = ctx.createGain();
-    boneLfoGain.gain.value = 0.15;
+    boneLfoGain.gain.value = 0.12;
     boneLfo.connect(boneLfoGain);
     boneLfoGain.connect(boneGain.gain);
 
@@ -545,20 +665,70 @@ const createConnectionMusic = (): MusicNodes => {
     gains.push(boneGain);
     lfos.push(boneLfo);
 
-    // Layer 2: Metallic overtone (harmonic series)
-    const metalOsc = ctx.createOscillator();
-    metalOsc.type = 'triangle';
-    metalOsc.frequency.value = 195; // 3rd harmonic
+    // Layer 2: Metallic overtone 1 (260Hz - 2nd harmonic)
+    const metal1Osc = ctx.createOscillator();
+    metal1Osc.type = 'triangle';
+    metal1Osc.frequency.value = 260;
 
-    const metalGain = ctx.createGain();
-    metalGain.gain.value = 0.08;
+    const metal1Gain = ctx.createGain();
+    metal1Gain.gain.value = 0.15; // Much louder
 
-    metalOsc.connect(metalGain);
-    metalGain.connect(masterGain);
-    metalOsc.start(t);
+    metal1Osc.connect(metal1Gain);
+    metal1Gain.connect(masterGain);
+    metal1Osc.start(t);
 
-    oscillators.push(metalOsc);
-    gains.push(metalGain);
+    oscillators.push(metal1Osc);
+    gains.push(metal1Gain);
+
+    // Layer 3: Metallic overtone 2 (520Hz - 4th harmonic, bell-like)
+    const metal2Osc = ctx.createOscillator();
+    metal2Osc.type = 'sine';
+    metal2Osc.frequency.value = 520;
+
+    const metal2Gain = ctx.createGain();
+    metal2Gain.gain.value = 0.1;
+
+    // Shimmer tremolo for metallic resonance
+    const shimmerLfo = ctx.createOscillator();
+    shimmerLfo.frequency.value = 4; // Fast shimmer
+    const shimmerLfoGain = ctx.createGain();
+    shimmerLfoGain.gain.value = 0.06;
+    shimmerLfo.connect(shimmerLfoGain);
+    shimmerLfoGain.connect(metal2Gain.gain);
+
+    metal2Osc.connect(metal2Gain);
+    metal2Gain.connect(masterGain);
+    metal2Osc.start(t);
+    shimmerLfo.start(t);
+
+    oscillators.push(metal2Osc);
+    gains.push(metal2Gain);
+    lfos.push(shimmerLfo);
+
+    // Layer 4: High metallic ping (780Hz - 6th harmonic)
+    const metal3Osc = ctx.createOscillator();
+    metal3Osc.type = 'sine';
+    metal3Osc.frequency.value = 780;
+
+    const metal3Gain = ctx.createGain();
+    metal3Gain.gain.value = 0.04;
+
+    // Slow swell
+    const metal3Lfo = ctx.createOscillator();
+    metal3Lfo.frequency.value = 0.2;
+    const metal3LfoGain = ctx.createGain();
+    metal3LfoGain.gain.value = 0.03;
+    metal3Lfo.connect(metal3LfoGain);
+    metal3LfoGain.connect(metal3Gain.gain);
+
+    metal3Osc.connect(metal3Gain);
+    metal3Gain.connect(masterGain);
+    metal3Osc.start(t);
+    metal3Lfo.start(t);
+
+    oscillators.push(metal3Osc);
+    gains.push(metal3Gain);
+    lfos.push(metal3Lfo);
 
     return { oscillators, gains, filters, noises, lfos, masterGain };
 };
