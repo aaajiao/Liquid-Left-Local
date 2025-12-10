@@ -72,6 +72,140 @@ let currentMusicLevel: string = '';
 const MUSIC_MASTER_VOLUME = 0.06;
 const CROSSFADE_DURATION = 1.5;
 
+// ===== MP3 BACKGROUND MUSIC SYSTEM =====
+
+// Cache for loaded MP3 audio buffers
+const mp3BufferCache: Map<string, AudioBuffer> = new Map();
+
+// Current MP3 source node (separate from procedural music)
+let currentMP3Source: AudioBufferSourceNode | null = null;
+let currentMP3Gain: GainNode | null = null;
+let currentMP3Level: string = '';
+
+// Load MP3 file and cache the buffer
+const loadMP3Buffer = async (url: string): Promise<AudioBuffer | null> => {
+    if (mp3BufferCache.has(url)) {
+        return mp3BufferCache.get(url)!;
+    }
+
+    try {
+        const ctx = getCtx();
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        mp3BufferCache.set(url, audioBuffer);
+        return audioBuffer;
+    } catch (error) {
+        console.error('Failed to load MP3:', url, error);
+        return null;
+    }
+};
+
+// Fade out and disconnect current MP3
+const fadeOutCurrentMP3 = (duration: number) => {
+    if (!currentMP3Gain || !currentMP3Source) return;
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const source = currentMP3Source;
+    const gain = currentMP3Gain;
+
+    gain.gain.linearRampToValueAtTime(0, t + duration);
+
+    setTimeout(() => {
+        try {
+            source.stop();
+            source.disconnect();
+            gain.disconnect();
+        } catch (e) { }
+    }, duration * 1000 + 100);
+
+    currentMP3Source = null;
+    currentMP3Gain = null;
+};
+
+// SUN: Play MP3 background music with loop + fire crackle layer
+const createSunMusicFromMP3 = async (): Promise<void> => {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+
+    // Preload the sun.mp3 file
+    const buffer = await loadMP3Buffer('/sound/sun.mp3');
+    if (!buffer) {
+        console.warn('Failed to load sun.mp3, falling back to procedural music');
+        // Fall back to procedural music if MP3 fails to load
+        currentMusicNodes = createSunMusic();
+        return;
+    }
+
+    // Create source node for MP3
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    // Create gain node for crossfade - higher volume for MP3
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(MUSIC_MASTER_VOLUME * 3, t + CROSSFADE_DURATION); // 3x for better audibility
+
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+
+    currentMP3Source = source;
+    currentMP3Gain = gain;
+    currentMP3Level = 'SUN';
+
+    // Also add fire crackle layer (from procedural SUN music)
+    const fireBufferSize = ctx.sampleRate * 15;
+    const fireBuffer = ctx.createBuffer(1, fireBufferSize, ctx.sampleRate);
+    const fireData = fireBuffer.getChannelData(0);
+    for (let i = 0; i < fireBufferSize; i++) {
+        fireData[i] = (Math.random() * 2 - 1);
+    }
+
+    const fireNoise = ctx.createBufferSource();
+    fireNoise.buffer = fireBuffer;
+    fireNoise.loop = true;
+
+    const fireFilter = ctx.createBiquadFilter();
+    fireFilter.type = 'highpass';
+    fireFilter.frequency.value = 3000;
+
+    const fireGain = ctx.createGain();
+    fireGain.gain.setValueAtTime(0, t);
+    fireGain.gain.linearRampToValueAtTime(0.012, t + CROSSFADE_DURATION); // Much lower than MP3
+
+    // Multiple LFOs with random frequencies for organic fire crackle fluctuation
+    const lfos: OscillatorNode[] = [];
+    for (let i = 0; i < 3; i++) {
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 0.15 + Math.random() * 0.35; // Random 0.15-0.5Hz (2-7 second cycles)
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 0.004 + Math.random() * 0.003; // Smaller fluctuation range
+        lfo.connect(lfoGain);
+        lfoGain.connect(fireGain.gain);
+        lfo.start(t + Math.random() * 2); // Random phase offset
+        lfos.push(lfo);
+    }
+
+    fireNoise.connect(fireFilter);
+    fireFilter.connect(fireGain);
+    fireGain.connect(ctx.destination);
+    fireNoise.start();
+
+    // Store fire crackle in procedural nodes for proper cleanup
+    currentMusicNodes = {
+        oscillators: [],
+        gains: [fireGain],
+        filters: [fireFilter],
+        noises: [fireNoise],
+        lfos: lfos,
+        masterGain: fireGain // Use fireGain as master for fade out
+    };
+};
+
+// ===== END MP3 BACKGROUND MUSIC SYSTEM =====
+
 // Utility: Create pink noise buffer
 const createPinkNoiseBuffer = (ctx: AudioContext, duration: number): AudioBuffer => {
     const bufferSize = ctx.sampleRate * duration;
@@ -859,9 +993,13 @@ const createSunMusic = (): MusicNodes => {
 // ===== MAIN CONTROL FUNCTIONS =====
 
 export const startBackgroundMusic = (level: string) => {
-    if (currentMusicLevel === level) return;
+    // Check if already playing this level (including MP3)
+    if (currentMusicLevel === level && level !== 'SUN') return;
+    if (currentMP3Level === level && level === 'SUN') return;
 
+    // Fade out both procedural and MP3 music
     fadeOutCurrentMusic(CROSSFADE_DURATION);
+    fadeOutCurrentMP3(CROSSFADE_DURATION);
 
     setTimeout(() => {
         currentMusicLevel = level;
@@ -874,15 +1012,28 @@ export const startBackgroundMusic = (level: string) => {
             case 'TRAVEL': currentMusicNodes = createTravelMusic(); break;
             case 'CONNECTION': currentMusicNodes = createConnectionMusic(); break;
             case 'HOME': currentMusicNodes = createHomeMusic(); break;
-            case 'SUN': currentMusicNodes = createSunMusic(); break;
+            case 'SUN':
+                // Use MP3 for SUN chapter
+                createSunMusicFromMP3();
+                break;
         }
     }, CROSSFADE_DURATION * 500);
 };
 
 export const stopBackgroundMusic = () => {
     fadeOutCurrentMusic(1.0);
+    fadeOutCurrentMP3(1.0);
     currentMusicLevel = '';
+    currentMP3Level = '';
     currentMusicNodes = null;
+};
+
+// Gradually fade out SUN chapter music when sun extinguishes
+export const fadeOutSunMusic = (duration: number = 8) => {
+    fadeOutCurrentMusic(duration);
+    fadeOutCurrentMP3(duration);
+    currentMusicLevel = '';
+    currentMP3Level = '';
 };
 
 // ===== END BACKGROUND MUSIC SYSTEM =====

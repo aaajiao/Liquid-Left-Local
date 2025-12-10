@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import * as THREE from 'three';
-import { playBubblePop, playFloodSound, playSunExtinguish, playLeafSuccess, playHomeMelt, startBackgroundMusic } from './utils/audio';
+import { playBubblePop, playFloodSound, playSunExtinguish, playLeafSuccess, playHomeMelt, startBackgroundMusic, fadeOutSunMusic } from './utils/audio';
 
 export interface NodeData {
     id: string;
@@ -515,9 +515,10 @@ export const useGameStore = create<GameState>((set, get) => ({
             } else {
                 const nextLevel = rainLevel + 0.04; // Slower Rise
 
-                // Trigger sun extinguish sound when water hits bottom of sun (approx level 6)
+                // Trigger sun extinguish sound and fade out music when water hits bottom of sun (approx level 6)
                 if (!hasTriggeredExtinguish && nextLevel > 6.0) {
                     playSunExtinguish();
+                    fadeOutSunMusic(8); // Fade out MP3 and fire crackle over 8 seconds
                     hasTriggeredExtinguish = true;
                 }
 
