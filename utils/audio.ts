@@ -173,7 +173,7 @@ const createSunMusicFromMP3 = async (): Promise<void> => {
 
     const fireGain = ctx.createGain();
     fireGain.gain.setValueAtTime(0, t);
-    fireGain.gain.linearRampToValueAtTime(0.012, t + CROSSFADE_DURATION); // Much lower than MP3
+    fireGain.gain.linearRampToValueAtTime(0.006, t + CROSSFADE_DURATION); // Very subtle, below MP3
 
     // Multiple LFOs with random frequencies for organic fire crackle fluctuation
     const lfos: OscillatorNode[] = [];
@@ -181,7 +181,7 @@ const createSunMusicFromMP3 = async (): Promise<void> => {
         const lfo = ctx.createOscillator();
         lfo.frequency.value = 0.15 + Math.random() * 0.35; // Random 0.15-0.5Hz (2-7 second cycles)
         const lfoGain = ctx.createGain();
-        lfoGain.gain.value = 0.004 + Math.random() * 0.003; // Smaller fluctuation range
+        lfoGain.gain.value = 0.002 + Math.random() * 0.002; // Very subtle fluctuation
         lfo.connect(lfoGain);
         lfoGain.connect(fireGain.gain);
         lfo.start(t + Math.random() * 2); // Random phase offset
