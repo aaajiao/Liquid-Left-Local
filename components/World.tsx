@@ -30,7 +30,7 @@ const PhysicsPlane: React.FC = () => {
     )
 }
 
-export const World: React.FC = () => {
+export const World: React.FC = memo(() => {
     const { currentLevel, envFeatures, rainLevel } = useGameStore();
 
     return (
@@ -48,7 +48,7 @@ export const World: React.FC = () => {
             <Atmosphere level={currentLevel} />
         </group>
     );
-};
+});
 
 const BreathingGround: React.FC<{ level: string, rainLevel?: number }> = ({ level, rainLevel = 0 }) => {
     const materialRef = useRef<any>(null);

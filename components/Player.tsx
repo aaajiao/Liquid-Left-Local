@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useLayoutEffect, useEffect, Suspense } from 'react';
+import React, { useRef, useState, useLayoutEffect, useEffect, Suspense, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Line, Sparkles, Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
@@ -52,6 +52,11 @@ export const Player: React.FC = () => {
     const exitFeature = envFeatures.find(f => f.type === 'EXIT_GATE');
     const exitPos = exitFeature ? new THREE.Vector3(...exitFeature.position) : null;
 
+    // Pre-filter envFeatures by type to avoid full array scans in useFrame
+    const fragments = useMemo(() => envFeatures.filter(f => f.type === 'FRAGMENT'), [envFeatures]);
+    const fleshBalls = useMemo(() => envFeatures.filter(f => f.type === 'FLESH_BALL'), [envFeatures]);
+    const emotionOrbs = useMemo(() => envFeatures.filter(f => f.type === 'EMOTION_ORB'), [envFeatures]);
+
     // Dynamic Color Logic for Name Chapter & Chewing
     const dynamicColor = useRef(new THREE.Color(theme.shell));
 
@@ -67,6 +72,17 @@ export const Player: React.FC = () => {
     const tempCyan = useRef(new THREE.Color("#f0ffff"));
     const tempFresnelStart = useRef(new THREE.Color("#f4a460"));
     const tempFresnelEnd = useRef(new THREE.Color("#00ffff"));
+    const tempMeltColor = useRef(new THREE.Color("#00bfff"));
+
+    // Reusable Vector3 objects to avoid per-frame allocations
+    const tempForceDir = useRef(new THREE.Vector3());
+    const tempPull = useRef(new THREE.Vector3());
+    const tempTarget = useRef(new THREE.Vector3());
+    const tempDir = useRef(new THREE.Vector3());
+    const tempBoost = useRef(new THREE.Vector3());
+    const tempBounce = useRef(new THREE.Vector3());
+    const tempOrbPos = useRef(new THREE.Vector3());
+    const tempVelDelta = useRef(new THREE.Vector3());
 
     // Watch for block events to trigger visual flash
     useEffect(() => {
@@ -207,7 +223,7 @@ export const Player: React.FC = () => {
                 targetTransmission = THREE.MathUtils.lerp(0.2, 1.0, currentMeltProgress);
 
                 // Color: Shift to cyan/lake color as it melts
-                dynamicColor.current.lerp(new THREE.Color('#00bfff'), currentMeltProgress * 0.5);
+                dynamicColor.current.lerp(tempMeltColor.current, currentMeltProgress * 0.5);
                 shellMaterialRef.current.color.copy(dynamicColor.current);
 
                 // Roughness: Become perfectly smooth water
@@ -331,11 +347,11 @@ export const Player: React.FC = () => {
         // 1. LURE (Standard Movement)
         if (interactionMode === 'LURE') {
             if (isMouseDown) {
-                const forceDir = new THREE.Vector3().subVectors(cursorWorldPos, pos);
-                forceDir.y = 0;
+                tempForceDir.current.subVectors(cursorWorldPos, pos);
+                tempForceDir.current.y = 0;
 
                 // ANALOG MOVEMENT LOGIC
-                const dist = forceDir.length();
+                const dist = tempForceDir.current.length();
                 const deadZone = 0.1;
 
                 if (dist > deadZone) {
@@ -347,8 +363,8 @@ export const Player: React.FC = () => {
                     // Lower max force for mobile to feel heavier/controllable
                     const maxForce = isTouch ? 10.0 : 20.0;
 
-                    forceDir.normalize().multiplyScalar(strength * maxForce * delta);
-                    vel.add(forceDir);
+                    tempForceDir.current.normalize().multiplyScalar(strength * maxForce * delta);
+                    vel.add(tempForceDir.current);
                 }
             }
             vel.multiplyScalar(0.92);
@@ -364,9 +380,9 @@ export const Player: React.FC = () => {
         else if (interactionMode === 'SLINGSHOT') {
             if (isMouseDown) {
                 if (!dragStartPos.current) dragStartPos.current = cursorWorldPos.clone();
-                const pull = new THREE.Vector3().subVectors(dragStartPos.current, cursorWorldPos);
-                if (pull.length() > 4) pull.setLength(4);
-                setSlingshotVector(pull);
+                tempPull.current.subVectors(dragStartPos.current, cursorWorldPos);
+                if (tempPull.current.length() > 4) tempPull.current.setLength(4);
+                setSlingshotVector(tempPull.current.clone());
             } else {
                 if (dragStartPos.current && slingshotVector) {
                     vel.add(slingshotVector.clone().multiplyScalar(15.0));
@@ -380,9 +396,9 @@ export const Player: React.FC = () => {
 
         // 4. OBSERVER (Finale/Home)
         else if (interactionMode === 'OBSERVER') {
-            const target = new THREE.Vector3(0, -2, -15);
-            const dir = new THREE.Vector3().subVectors(target, pos).normalize();
-            vel.add(dir.multiplyScalar(2 * delta));
+            tempTarget.current.set(0, -2, -15);
+            tempDir.current.subVectors(tempTarget.current, pos).normalize();
+            vel.add(tempDir.current.multiplyScalar(2 * delta));
             vel.multiplyScalar(0.95);
 
             // Check for completion
@@ -397,13 +413,13 @@ export const Player: React.FC = () => {
         if (currentLevel === 'PROLOGUE') {
             pos.x = THREE.MathUtils.clamp(pos.x, -2.8, 2.8);
             if (pos.z > 14.0) useGameStore.getState().startLevel('LANGUAGE');
-            if (pos.z > 10.0) vel.add(new THREE.Vector3(0, 0, 1).multiplyScalar(20 * delta));
+            if (pos.z > 10.0) vel.add(tempBoost.current.set(0, 0, 1).multiplyScalar(20 * delta));
         }
 
         // NAME: Collection
         if (currentLevel === 'NAME') {
-            envFeatures.forEach(f => {
-                if (f.type === 'FRAGMENT' && new THREE.Vector3(...f.position).distanceTo(pos) < 1.5) {
+            fragments.forEach(f => {
+                if (tempOrbPos.current.set(...f.position).distanceTo(pos) < 1.5) {
                     absorbFragment(f.id);
                     playConnect();
                 }
@@ -413,8 +429,8 @@ export const Player: React.FC = () => {
         // CHEWING: Squeeze & Grow
         if (currentLevel === 'CHEWING') {
             let collided = false;
-            envFeatures.forEach(f => {
-                if (f.type === 'FLESH_BALL' && new THREE.Vector3(...f.position).distanceTo(pos) < 1.5 + (playerScale * 0.1)) {
+            fleshBalls.forEach(f => {
+                if (tempOrbPos.current.set(...f.position).distanceTo(pos) < 1.5 + (playerScale * 0.1)) {
                     collided = true;
                 }
             });
@@ -447,26 +463,24 @@ export const Player: React.FC = () => {
         // TRAVEL: Choice
         if (currentLevel === 'TRAVEL') {
             const now = state.clock.elapsedTime;
-            envFeatures.forEach(f => {
-                if (f.type === 'EMOTION_ORB') {
-                    const orbPos = new THREE.Vector3(...f.position);
-                    if (pos.distanceTo(orbPos) < 2.0) {
-                        if (f.data?.type === 'TEAR') {
-                            // Only play success sound once
-                            if (!useGameStore.getState().isLevelComplete) {
-                                playOrbFusion();
-                                selectVehicle('TEAR');
-                            }
-                        } else {
-                            // Bounce off
-                            const bounce = new THREE.Vector3().subVectors(pos, orbPos).normalize().multiplyScalar(10);
-                            vel.add(bounce);
+            emotionOrbs.forEach(f => {
+                tempOrbPos.current.set(...f.position);
+                if (pos.distanceTo(tempOrbPos.current) < 2.0) {
+                    if (f.data?.type === 'TEAR') {
+                        // Only play success sound once
+                        if (!useGameStore.getState().isLevelComplete) {
+                            playOrbFusion();
+                            selectVehicle('TEAR');
+                        }
+                    } else {
+                        // Bounce off
+                        tempBounce.current.subVectors(pos, tempOrbPos.current).normalize().multiplyScalar(10);
+                        vel.add(tempBounce.current);
 
-                            // Audio with Debounce
-                            if (now - lastBounceTime.current > 0.3) {
-                                playOrbBounce();
-                                lastBounceTime.current = now;
-                            }
+                        // Audio with Debounce
+                        if (now - lastBounceTime.current > 0.3) {
+                            playOrbBounce();
+                            lastBounceTime.current = now;
                         }
                     }
                 }
@@ -487,9 +501,10 @@ export const Player: React.FC = () => {
             }
         }
 
-        pos.add(vel.clone().multiplyScalar(delta));
+        tempVelDelta.current.copy(vel).multiplyScalar(delta);
+        pos.add(tempVelDelta.current);
         groupRef.current.position.copy(pos);
-        updatePlayerPos(pos.clone());
+        updatePlayerPos(pos);
 
         // --- ANIMATION ---
         const speed = vel.length();

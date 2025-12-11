@@ -1,6 +1,6 @@
 # Liquid Left (剩余液体)
 
-![didi preview](didi.gif)
+![didi preview](https://github.com/user-attachments/assets/5a1fadf9-1b58-4eaf-843d-68a64b05f666)
 
 **didi v2.0 of Liquid Left** is a 2.5D atmospheric narrative exploration game adapted from [Xindi's fiction *Liquid Left*](https://xindizhou.com/Liquid-Left). You play as *didi*, a sentient droplet navigating a breathing, organic world. Through a series of abstract, sensory stages, players explore themes of language, physical connection, and the cycle of nature.
 
