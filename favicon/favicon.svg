@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .drop { fill: #ff69b4; }
+    .highlight { fill: rgba(255,255,255,0.5); }
+    .core { fill: #fff; }
+    @media (prefers-color-scheme: dark) {
+      .drop { fill: #00bfff; }
+      .highlight { fill: rgba(255,255,255,0.4); }
+      .core { fill: #e0ffff; }
+    }
+  </style>
+  <!-- Water drop body (didi shape) -->
+  <path class="drop" d="M16 2 C16 2 5 13 5 21 C5 27 10 30 16 30 C22 30 27 27 27 21 C27 13 16 2 16 2 Z"/>
+  <!-- Inner glow / highlight -->
+  <ellipse class="highlight" cx="11" cy="19" rx="4" ry="5"/>
+  <!-- Core (inner light) -->
+  <circle class="core" cx="16" cy="20" r="4" opacity="0.6"/>
+</svg>
