@@ -43,4 +43,14 @@ This project is built with modern web technologies focusing on performance and p
 
 ---
 
+## 📜 License
+
+[![CC BY-NC 4.0](https://licensebuttons.net/l/by-nc/4.0/88x31.png)](https://creativecommons.org/licenses/by-nc/4.0/)
+
+This work is licensed under a [Creative Commons Attribution-NonCommercial 4.0 International License](https://creativecommons.org/licenses/by-nc/4.0/).
+
+Based on the fiction *[Liquid Left](https://xindizhou.com/Liquid-Left)* by Xindi Zhou.
+
+---
+
 *Navigating the breathing, organic world of Liquid Left.*
