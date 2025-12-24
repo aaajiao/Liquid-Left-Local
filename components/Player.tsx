@@ -6,10 +6,115 @@ import * as THREE from 'three';
 import { useGameStore, LevelType } from '../store';
 import { playStep, playConnect, playSqueeze, playSqueezeMax, playOrbBounce, playOrbFusion, playPaSound } from '../utils/audio';
 
+// ============================================================================
+// CONFIGURATION & CONSTANTS
+// ============================================================================
+
+/**
+ * Physics constants for player movement
+ * Controls how the player responds to input based on device type
+ */
+const PHYSICS_CONFIG = {
+  /** Maximum force applied when dragging on mobile devices (lower for better control) */
+  MOBILE_MAX_FORCE: 10.0,
+  /** Maximum force applied when dragging on desktop */
+  DESKTOP_MAX_FORCE: 20.0,
+  /** Velocity damping factor (0-1, higher = more slippery) */
+  DAMPING: 0.92,
+  /** Slingshot damping for PROLOGUE level */
+  SLINGSHOT_DAMPING: 0.985,
+  /** Slingshot force multiplier */
+  SLINGSHOT_FORCE_MULTIPLIER: 15.0,
+  /** Maximum slingshot pull distance */
+  SLINGSHOT_MAX_PULL: 4.0,
+  /** Observer mode damping for HOME level */
+  OBSERVER_DAMPING: 0.95,
+  /** Observer mode force multiplier */
+  OBSERVER_FORCE: 2.0,
+  /** Minimum distance for analog movement deadzone */
+  ANALOG_DEADZONE: 0.1,
+  /** Maximum distance for analog movement scaling */
+  ANALOG_MAX_DIST: 3.0
+} as const;
+
+/**
+ * Level-specific gameplay constants
+ * Each level has unique mechanics that require different thresholds
+ */
+const LEVEL_CONSTANTS = {
+  PROLOGUE: {
+    /** Player X position cannot exceed these boundaries (産道 canal walls) */
+    BOUNDARY_X_MIN: -2.8,
+    BOUNDARY_X_MAX: 2.8,
+    /** Z position threshold to trigger transition to next level */
+    EXIT_THRESHOLD: 14.0,
+    /** Z position to start acceleration boost towards exit */
+    BOOST_START_THRESHOLD: 10.0,
+    /** Boost force applied when past threshold */
+    BOOST_FORCE: 20
+  },
+  NAME: {
+    /** Minimum fragments needed to complete level */
+    REQUIRED_FRAGMENTS: 5,
+    /** Collection range for fragment absorption */
+    FRAGMENT_COLLECT_RADIUS: 1.5
+  },
+  CHEWING: {
+    /** Maximum player scale (size when fully grown) */
+    MAX_SCALE: 10,
+    /** Scale threshold to show narrative progression */
+    NARRATIVE_THRESHOLD: 3.0,
+    /** Scale threshold for level completion */
+    COMPLETION_SCALE: 8.0,
+    /** Collision radius scaling factor */
+    COLLISION_RADIUS_BASE: 1.5,
+    /** Growth rate when colliding with flesh balls */
+    GROWTH_RATE_PER_SECOND: 0.5,
+    /** Velocity resistance when pushing through flesh */
+    FLESH_RESISTANCE: 0.5,
+    /** Minimum time between squeeze sounds */
+    SQUEEZE_SOUND_INTERVAL: 0.25,
+    /** Jitter intensity when squeezing (vibration effect) */
+    SQUEEZE_JITTER: 0.05
+  },
+  WIND: {
+    /** Maximum player scale as water drop */
+    MAX_WATER_SCALE: 6,
+    /** Scale threshold to show narrative progression */
+    NARRATIVE_THRESHOLD: 3.0,
+    /** Growth rate when absorbing wind bullets */
+    GROWTH_RATE_PER_BULLET: 0.15
+  },
+  TRAVEL: {
+    /** Interaction radius for emotion orbs */
+    ORB_INTERACTION_RADIUS: 2.0,
+    /** Bounce force when hitting wrong orb */
+    BOUNCE_FORCE: 10,
+    /** Minimum time between bounce sounds */
+    BOUNCE_SOUND_INTERVAL: 0.3
+  },
+  CONNECTION: {
+    /** Range to auto-tether to nearest node */
+    TETHER_RADIUS: 2.0
+  },
+  HOME: {
+    /** Target position for melting (lake center) */
+    LAKE_TARGET_Z: -15,
+    /** Y position of lake surface */
+    LAKE_SURFACE_Y: -2,
+    /** Z threshold to trigger level completion */
+    COMPLETION_THRESHOLD_Z: -12
+  }
+} as const;
+
+/**
+ * Visual theme configuration for each level
+ * Defines color palette for player appearance per level
+ */
 const PLAYER_THEMES: Record<LevelType, { shell: string, core: string, aura: string, emissive: string, sparkle: string }> = {
     PROLOGUE: { shell: "#ffebef", core: "#ffffff", aura: "#ff1493", emissive: "#ff69b4", sparkle: "#fff" },
     LANGUAGE: { shell: "#2a0a5e", core: "#00ffff", aura: "#000000", emissive: "#00ced1", sparkle: "#00ffff" },
-    NAME: { shell: "#ffffff", core: "#ffd700", aura: "#000000", emissive: "#ffffff", sparkle: "#ffd700" }, // High contrast: White/Gold start
+    NAME: { shell: "#ffffff", core: "#ffd700", aura: "#000000", emissive: "#ffffff", sparkle: "#ffd700" },
     CHEWING: { shell: "#98fb98", core: "#006400", aura: "#2e8b57", emissive: "#3cb371", sparkle: "#00ff00" },
     WIND: { shell: "#f5deb3", core: "#8b4513", aura: "#a0522d", emissive: "#d2691e", sparkle: "#f4a460" },
     TRAVEL: { shell: "#00008b", core: "#ffffff", aura: "#191970", emissive: "#4169e1", sparkle: "#87cefa" },
@@ -352,22 +457,20 @@ export const Player: React.FC = () => {
 
                 // ANALOG MOVEMENT LOGIC
                 const dist = tempForceDir.current.length();
-                const deadZone = 0.1;
 
-                if (dist > deadZone) {
+                if (dist > PHYSICS_CONFIG.ANALOG_DEADZONE) {
                     // On mobile: Analog ramp-up to avoid "jerkiness"
-                    // strength goes from 0 to 1 as distance goes from 0.1 to 3.0
-                    const maxDist = 3.0;
-                    const strength = Math.min(dist, maxDist) / maxDist;
+                    // strength goes from 0 to 1 as distance goes from deadzone to max
+                    const strength = Math.min(dist, PHYSICS_CONFIG.ANALOG_MAX_DIST) / PHYSICS_CONFIG.ANALOG_MAX_DIST;
 
                     // Lower max force for mobile to feel heavier/controllable
-                    const maxForce = isTouch ? 10.0 : 20.0;
+                    const maxForce = isTouch ? PHYSICS_CONFIG.MOBILE_MAX_FORCE : PHYSICS_CONFIG.DESKTOP_MAX_FORCE;
 
                     tempForceDir.current.normalize().multiplyScalar(strength * maxForce * delta);
                     vel.add(tempForceDir.current);
                 }
             }
-            vel.multiplyScalar(0.92);
+            vel.multiplyScalar(PHYSICS_CONFIG.DAMPING);
         }
 
         // 2. CLICK Mode (Sun Finale)
@@ -381,45 +484,50 @@ export const Player: React.FC = () => {
             if (isMouseDown) {
                 if (!dragStartPos.current) dragStartPos.current = cursorWorldPos.clone();
                 tempPull.current.subVectors(dragStartPos.current, cursorWorldPos);
-                if (tempPull.current.length() > 4) tempPull.current.setLength(4);
+                if (tempPull.current.length() > PHYSICS_CONFIG.SLINGSHOT_MAX_PULL) {
+                    tempPull.current.setLength(PHYSICS_CONFIG.SLINGSHOT_MAX_PULL);
+                }
                 setSlingshotVector(tempPull.current.clone());
             } else {
                 if (dragStartPos.current && slingshotVector) {
-                    vel.add(slingshotVector.clone().multiplyScalar(15.0));
+                    vel.add(slingshotVector.clone().multiplyScalar(PHYSICS_CONFIG.SLINGSHOT_FORCE_MULTIPLIER));
                     dragStartPos.current = null;
                     setSlingshotVector(null);
                     playStep();
                 }
             }
-            vel.multiplyScalar(0.985);
+            vel.multiplyScalar(PHYSICS_CONFIG.SLINGSHOT_DAMPING);
         }
 
         // 4. OBSERVER (Finale/Home)
         else if (interactionMode === 'OBSERVER') {
-            tempTarget.current.set(0, -2, -15);
+            tempTarget.current.set(0, LEVEL_CONSTANTS.HOME.LAKE_SURFACE_Y, LEVEL_CONSTANTS.HOME.LAKE_TARGET_Z);
             tempDir.current.subVectors(tempTarget.current, pos).normalize();
-            vel.add(tempDir.current.multiplyScalar(2 * delta));
-            vel.multiplyScalar(0.95);
+            vel.add(tempDir.current.multiplyScalar(PHYSICS_CONFIG.OBSERVER_FORCE * delta));
+            vel.multiplyScalar(PHYSICS_CONFIG.OBSERVER_DAMPING);
 
             // Check for completion
-            if (pos.z < -12 && !useGameStore.getState().isLevelComplete) {
+            if (pos.z < LEVEL_CONSTANTS.HOME.COMPLETION_THRESHOLD_Z && !useGameStore.getState().isLevelComplete) {
                 useGameStore.setState({ isLevelComplete: true, narrativeIndex: 1 });
             }
         }
 
         // --- LEVEL SPECIFIC INTERACTIONS ---
 
-        // PROLOGUE
+        // PROLOGUE: Canal boundaries and exit logic
         if (currentLevel === 'PROLOGUE') {
-            pos.x = THREE.MathUtils.clamp(pos.x, -2.8, 2.8);
-            if (pos.z > 14.0) useGameStore.getState().startLevel('LANGUAGE');
-            if (pos.z > 10.0) vel.add(tempBoost.current.set(0, 0, 1).multiplyScalar(20 * delta));
+            const config = LEVEL_CONSTANTS.PROLOGUE;
+            pos.x = THREE.MathUtils.clamp(pos.x, config.BOUNDARY_X_MIN, config.BOUNDARY_X_MAX);
+            if (pos.z > config.EXIT_THRESHOLD) useGameStore.getState().startLevel('LANGUAGE');
+            if (pos.z > config.BOOST_START_THRESHOLD) {
+                vel.add(tempBoost.current.set(0, 0, 1).multiplyScalar(config.BOOST_FORCE * delta));
+            }
         }
 
-        // NAME: Collection
+        // NAME: Fragment collection
         if (currentLevel === 'NAME') {
             fragments.forEach(f => {
-                if (tempOrbPos.current.set(...f.position).distanceTo(pos) < 1.5) {
+                if (tempOrbPos.current.set(...f.position).distanceTo(pos) < LEVEL_CONSTANTS.NAME.FRAGMENT_COLLECT_RADIUS) {
                     absorbFragment(f.id);
                     playConnect();
                 }
