@@ -12,6 +12,73 @@ import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { I18nProvider } from './contexts/I18nContext';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
+// ============================================================================
+// CONFIGURATION & CONSTANTS
+// ============================================================================
+
+/**
+ * Camera configuration for each level
+ * Defines camera offset, zoom level, and visibility settings
+ */
+const CAMERA_CONFIG: Record<LevelType, { offset: [number, number, number]; baseZoom: number }> = {
+  PROLOGUE: { offset: [15, 15, 15], baseZoom: 40 },
+  LANGUAGE: { offset: [20, 20, 20], baseZoom: 40 },
+  NAME: { offset: [20, 20, 20], baseZoom: 40 },
+  CHEWING: { offset: [10, 20, 10], baseZoom: 60 },  // Close-up view
+  WIND: { offset: [20, 20, 20], baseZoom: 40 },
+  TRAVEL: { offset: [30, 30, 30], baseZoom: 25 },   // Wide view
+  CONNECTION: { offset: [20, 20, 20], baseZoom: 40 },
+  HOME: { offset: [0, 30, 30], baseZoom: 30 },
+  SUN: { offset: [20, 10, 20], baseZoom: 35 }
+} as const;
+
+/**
+ * Device-specific scale factors
+ * Different zoom levels for various screen sizes to ensure optimal view
+ */
+const DEVICE_SCALE_FACTORS = {
+  /** Phone portrait mode */
+  PHONE_PORTRAIT: 0.65,
+  /** Phone landscape mode (needs more zoom out to see scene) */
+  PHONE_LANDSCAPE: 0.5,
+  /** Tablet portrait */
+  TABLET_PORTRAIT: 0.85,
+  /** Tablet landscape */
+  TABLET_LANDSCAPE: 0.75,
+  /** Desktop */
+  DESKTOP: 1.0,
+  /** Screen width breakpoints */
+  BREAKPOINT_PHONE: 768,
+  BREAKPOINT_TABLET: 1024
+} as const;
+
+/**
+ * Camera control sensitivity settings
+ * Different values for touch vs mouse to optimize UX
+ */
+const CAMERA_CONTROLS = {
+  /** Touch device rotation speed (reduced for better control) */
+  TOUCH_ROTATE_SPEED: 0.4,
+  /** Desktop rotation speed */
+  DESKTOP_ROTATE_SPEED: 1.0,
+  /** Touch zoom speed */
+  TOUCH_ZOOM_SPEED: 0.5,
+  /** Desktop zoom speed */
+  DESKTOP_ZOOM_SPEED: 1.0,
+  /** Camera smoothing on touch devices (slow for cinematic feel) */
+  TOUCH_SMOOTH_FACTOR: 0.02,
+  /** Camera smoothing on desktop */
+  DESKTOP_SMOOTH_FACTOR: 0.1,
+  /** Orbit controls damping */
+  DAMPING_FACTOR: 0.05,
+  /** Minimum zoom level (except HOME level) */
+  MIN_ZOOM: 10,
+  /** Maximum zoom level (except HOME level) */
+  MAX_ZOOM: 200,
+  /** Maximum polar angle (prevent camera from going below horizon) */
+  MAX_POLAR_ANGLE: Math.PI / 2 - 0.1
+} as const;
+
 // Hook to get the actual visible viewport height (accounting for mobile browser UI)
 const useViewportHeight = () => {
     useEffect(() => {
@@ -144,25 +211,23 @@ const useScreenScaleFactor = () => {
             const landscape = width > height;
             setIsLandscape(landscape);
 
-            if (width < 768) {
+            if (width < DEVICE_SCALE_FACTORS.BREAKPOINT_PHONE) {
                 // Phone
                 if (landscape) {
-                    // Landscape phone: Need more zoom out to see the scene properly
-                    setScaleFactor(0.5);
+                    setScaleFactor(DEVICE_SCALE_FACTORS.PHONE_LANDSCAPE);
                 } else {
-                    // Portrait phone: Standard mobile zoom
-                    setScaleFactor(0.65);
+                    setScaleFactor(DEVICE_SCALE_FACTORS.PHONE_PORTRAIT);
                 }
-            } else if (width < 1024) {
+            } else if (width < DEVICE_SCALE_FACTORS.BREAKPOINT_TABLET) {
                 // Tablet
                 if (landscape) {
-                    setScaleFactor(0.75);
+                    setScaleFactor(DEVICE_SCALE_FACTORS.TABLET_LANDSCAPE);
                 } else {
-                    setScaleFactor(0.85);
+                    setScaleFactor(DEVICE_SCALE_FACTORS.TABLET_PORTRAIT);
                 }
             } else {
                 // Desktop
-                setScaleFactor(1.0);
+                setScaleFactor(DEVICE_SCALE_FACTORS.DESKTOP);
             }
         };
 
@@ -228,18 +293,14 @@ const CameraController = () => {
 
     useEffect(() => {
         if (!controlsRef.current) return;
-        const offset = offsetRef.current;
-        offset.set(20, 20, 20);
-        let baseZoom = 40;
 
-        if (currentLevel === 'PROLOGUE') { offset.set(15, 15, 15); baseZoom = 40; }
-        else if (currentLevel === 'CHEWING') { offset.set(10, 20, 10); baseZoom = 60; } // Close up
-        else if (currentLevel === 'TRAVEL') { offset.set(30, 30, 30); baseZoom = 25; } // Wide
-        else if (currentLevel === 'HOME') { offset.set(0, 30, 30); baseZoom = 30; }
-        else if (currentLevel === 'SUN') { offset.set(20, 10, 20); baseZoom = 35; }
+        // Get camera config for current level
+        const config = CAMERA_CONFIG[currentLevel];
+        const offset = offsetRef.current;
+        offset.set(...config.offset);
 
         // Apply device-specific scale factor
-        const finalZoom = baseZoom * scaleFactor;
+        const finalZoom = config.baseZoom * scaleFactor;
 
         // Initial setup - instant jump
         camera.position.copy(playerPos).add(offset);
@@ -252,8 +313,8 @@ const CameraController = () => {
 
     useFrame(() => {
         if (controlsRef.current) {
-            // Mobile Optimization: Very slow, cinematic lerp (0.01) to prevent motion sickness/jitter
-            const smoothFactor = isTouch ? 0.02 : 0.1;
+            // Mobile Optimization: Very slow, cinematic lerp to prevent motion sickness/jitter
+            const smoothFactor = isTouch ? CAMERA_CONTROLS.TOUCH_SMOOTH_FACTOR : CAMERA_CONTROLS.DESKTOP_SMOOTH_FACTOR;
             controlsRef.current.target.lerp(playerPos, smoothFactor);
             controlsRef.current.update();
         }
@@ -263,12 +324,12 @@ const CameraController = () => {
         <OrbitControls
             ref={controlsRef}
             enableDamping
-            dampingFactor={0.05}
-            minZoom={currentLevel === 'HOME' ? 0 : 10}
-            maxZoom={currentLevel === 'HOME' ? Infinity : 200}
-            maxPolarAngle={Math.PI / 2 - 0.1}
-            rotateSpeed={isTouch ? 0.4 : 1.0} // Reduce rotation speed on mobile
-            zoomSpeed={isTouch ? 0.5 : 1.0}
+            dampingFactor={CAMERA_CONTROLS.DAMPING_FACTOR}
+            minZoom={currentLevel === 'HOME' ? 0 : CAMERA_CONTROLS.MIN_ZOOM}
+            maxZoom={currentLevel === 'HOME' ? Infinity : CAMERA_CONTROLS.MAX_ZOOM}
+            maxPolarAngle={CAMERA_CONTROLS.MAX_POLAR_ANGLE}
+            rotateSpeed={isTouch ? CAMERA_CONTROLS.TOUCH_ROTATE_SPEED : CAMERA_CONTROLS.DESKTOP_ROTATE_SPEED}
+            zoomSpeed={isTouch ? CAMERA_CONTROLS.TOUCH_ZOOM_SPEED : CAMERA_CONTROLS.DESKTOP_ZOOM_SPEED}
             enablePan={false} // Disable pan to prevent conflict with drag-to-move
             mouseButtons={{
                 LEFT: isAltPressed ? THREE.MOUSE.DOLLY : THREE.MOUSE.PAN,
