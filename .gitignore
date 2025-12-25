@@ -27,3 +27,6 @@ dist-ssr
 
 # Vite cache files
 vite.config.ts.timestamp-*.js
+
+# Test coverage reports
+coverage/
