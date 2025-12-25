@@ -136,10 +136,13 @@ export const UI: React.FC = () => {
                         : narrativeFontSize
                     }}
                     initial={{ textShadow: '0 0 0px transparent' }}
-                    whileHover={{
-                      textShadow: `0 0 8px ${glowColor}, 0 0 16px ${glowColor}, 0 0 24px ${glowColor}`,
-                      transition: { duration: 0.3 }
+                    animate={{
+                      textShadow: `0 0 6px ${glowColor}, 0 0 12px ${glowColor}`,
                     }}
+                    whileHover={{
+                      textShadow: `0 0 10px ${glowColor}, 0 0 20px ${glowColor}, 0 0 30px ${glowColor}`,
+                    }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
                   >
                     {text}
                   </motion.p>
