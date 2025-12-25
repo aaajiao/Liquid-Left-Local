@@ -32,6 +32,109 @@ This project is built with modern web technologies focusing on performance and p
 *   **Animation:** [Framer Motion](https://www.framer.com/motion/) (UI) & Custom Frame Loops (3D)
 *   **Audio:** Native **Web Audio API** (No external assets; all sound effects and ambience are synthesized procedurally in real-time).
 *   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+*   **Testing:** [Vitest](https://vitest.dev/) + [@testing-library/react](https://testing-library.com/)
+*   **Build Tool:** [Vite](https://vitejs.dev/)
+
+## 🚀 Development
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+
+### Getting Started
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### Project Structure
+
+```
+├── components/        # React + Three.js components
+│   ├── Player.tsx    # Player physics and rendering
+│   ├── World.tsx     # Environment and level geometry
+│   ├── Puzzle.tsx    # Node system and connections
+│   └── UI.tsx        # 2D overlay UI
+├── contexts/         # React Context providers
+├── locales/          # i18n translations (zh/en)
+├── utils/            # Utility functions
+│   └── audio.ts      # Procedural audio synthesis
+├── store.ts          # Zustand game state
+├── App.tsx           # Main app and camera system
+└── src/
+    ├── __tests__/    # Unit and integration tests
+    └── test/         # Test setup and mocks
+```
+
+### Testing
+
+We maintain comprehensive test coverage to ensure code quality. See [TESTING.md](./TESTING.md) for details.
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode (for development)
+npm test -- --watch
+
+# UI mode (visual test runner)
+npm run test:ui
+
+# Coverage report
+npm run test:coverage
+```
+
+Current test coverage: **57.69%** (store.ts core logic)
+
+### Configuration & Tuning
+
+Game mechanics, physics, and camera settings are now configurable via constants. See [REFACTORING.md](./REFACTORING.md) for the complete guide.
+
+**Quick examples:**
+
+```typescript
+// Adjust physics feel (components/Player.tsx)
+const PHYSICS_CONFIG = {
+  MOBILE_MAX_FORCE: 10.0,  // Increase for more responsive mobile controls
+  DAMPING: 0.92            // Decrease for more inertia
+};
+
+// Adjust camera view (App.tsx)
+const CAMERA_CONFIG = {
+  CHEWING: { offset: [10, 20, 10], baseZoom: 60 }  // Close-up view
+};
+```
+
+### Development Tools
+
+**Keyboard Shortcuts** (dev mode):
+- `1-9`: Jump to specific level
+- `+/-`: Zoom in/out
+- `Alt + Drag`: Alternative camera control
+
+**Browser DevTools**:
+```javascript
+// Access game state (dev mode)
+window.__GAME_DEBUG__?.getState()
+window.__GAME_DEBUG__?.teleportToLevel('WIND')
+```
 
 ## 🎮 Controls
 
