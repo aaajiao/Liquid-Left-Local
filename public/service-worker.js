@@ -1,33 +1,13 @@
 // Service Worker for Liquid Left - Offline Gaming Support
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `liquid-left-${CACHE_VERSION}`;
 
-// Assets to cache immediately on install
-const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/index.css',
-  '/sound/sun.mp3',
-  '/favicon/favicon.svg',
-  '/favicon/favicon.ico',
-  '/favicon/favicon-96x96.png',
-  '/favicon/apple-touch-icon.png',
-  '/favicon/site.webmanifest'
-];
-
-// Install: Pre-cache core assets
+// Install: Activate immediately
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS);
-    }).then(() => {
-      // Activate immediately without waiting
-      return self.skipWaiting();
-    })
-  );
+  self.skipWaiting();
 });
 
-// Activate: Clean up old caches
+// Activate: Clean up old caches and take control
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -37,13 +17,12 @@ self.addEventListener('activate', (event) => {
           .map((name) => caches.delete(name))
       );
     }).then(() => {
-      // Take control of all clients immediately
       return self.clients.claim();
     })
   );
 });
 
-// Fetch: Serve from cache, fallback to network
+// Fetch: Network-first with cache fallback
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -53,56 +32,85 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip chrome-extension and other non-http(s) requests
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
   // Skip Vercel Analytics and Speed Insights
   if (url.hostname.includes('vercel') ||
-      url.pathname.includes('vitals') ||
+      url.hostname.includes('vitals') ||
       url.pathname.includes('analytics')) {
     return;
   }
 
-  // Google Fonts: Stale-while-revalidate
-  if (url.hostname.includes('fonts.googleapis.com') ||
-      url.hostname.includes('fonts.gstatic.com')) {
+  // For navigation requests (HTML): Network first, cache fallback
+  if (request.mode === 'navigate') {
     event.respondWith(
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.match(request).then((cachedResponse) => {
-          const fetchPromise = fetch(request).then((networkResponse) => {
-            if (networkResponse.ok) {
-              cache.put(request, networkResponse.clone());
-            }
-            return networkResponse;
-          }).catch(() => cachedResponse);
+      fetch(request)
+        .then((response) => {
+          // Cache the latest version
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request).then((cached) => {
+            return cached || caches.match('/');
+          });
+        })
+    );
+    return;
+  }
 
-          return cachedResponse || fetchPromise;
+  // For same-origin assets: Cache first, network fallback
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) {
+          return cached;
+        }
+        return fetch(request).then((response) => {
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
         });
       })
     );
     return;
   }
 
-  // App assets: Cache-first strategy
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+  // For Google Fonts: Cache first, network fallback
+  if (url.hostname.includes('fonts.googleapis.com') ||
+      url.hostname.includes('fonts.gstatic.com')) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) {
+          return cached;
+        }
+        return fetch(request).then((response) => {
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
+        }).catch(() => {
+          // Return empty response for fonts if offline
+          return new Response('', { status: 503 });
+        });
+      })
+    );
+    return;
+  }
 
-      return fetch(request).then((networkResponse) => {
-        // Cache successful responses for same-origin requests
-        if (networkResponse.ok && url.origin === self.location.origin) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-        }
-        return networkResponse;
-      }).catch(() => {
-        // Offline fallback for navigation requests
-        if (request.mode === 'navigate') {
-          return caches.match('/');
-        }
-        return new Response('Offline', { status: 503 });
-      });
-    })
-  );
+  // Default: Network only (for external resources)
+  event.respondWith(fetch(request));
 });
