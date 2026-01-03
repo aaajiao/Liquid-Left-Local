@@ -130,13 +130,22 @@ const useThemeColor = () => {
 
     useEffect(() => {
         const theme = LEVEL_THEMES[currentLevel];
-        const meta = document.getElementById('theme-color-meta');
 
-        if (meta) {
-            meta.setAttribute('content', theme.bg);
+        // Check if running in PWA/standalone mode
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: fullscreen)').matches ||
+            (navigator as any).standalone === true;
+
+        // Only update theme-color meta tag in browser mode, not in PWA
+        // In PWA mode, the theme-color affects the system UI bars which we don't want
+        if (!isStandalone) {
+            const meta = document.getElementById('theme-color-meta');
+            if (meta) {
+                meta.setAttribute('content', theme.bg);
+            }
         }
 
-        // Also update body background to ensure iOS Safari translucency looks correct
+        // Always update body background for proper scene rendering
         document.body.style.backgroundColor = theme.bg;
     }, [currentLevel]);
 };
