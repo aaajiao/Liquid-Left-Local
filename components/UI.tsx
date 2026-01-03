@@ -5,9 +5,32 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { resumeAudio, startAmbience } from '../utils/audio';
 import { useI18n } from '../contexts/I18nContext';
 
+// Inline offline indicator for chapter title
+const useOnlineStatus = () => {
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return isOnline;
+};
+
 export const UI: React.FC = () => {
   const { currentLevel, narrativeIndex, isLevelComplete, startLevel, resetGame, triggerHomeMelt } = useGameStore();
   const { translations, lang } = useI18n();
+  const isOnline = useOnlineStatus();
 
   // State for HOME chapter fade-out transition
   const [isHomeFadingOut, setIsHomeFadingOut] = useState(false);
@@ -84,7 +107,34 @@ export const UI: React.FC = () => {
         }}
       >
         {/* Chapter Title - Fades out after loading */}
-        <div className="text-gray-600/60">
+        <div className="text-gray-600/60 flex items-center gap-2">
+          {/* Offline indicator - only shows when offline */}
+          <AnimatePresence>
+            {!isOnline && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 0.6, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.3 }}
+                title={lang === 'zh' ? '离线模式' : 'Offline'}
+              >
+                <svg
+                  width={isLandscape ? 14 : 18}
+                  height={isLandscape ? 14 : 18}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-amber-600"
+                >
+                  <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+                  <line x1="4" y1="4" x2="20" y2="20" strokeWidth="2.5" />
+                </svg>
+              </motion.span>
+            )}
+          </AnimatePresence>
           <motion.h1
             key={currentLevel}
             className="font-bold tracking-widest uppercase text-pink-900"
