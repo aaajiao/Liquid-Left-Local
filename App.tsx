@@ -11,7 +11,6 @@ import { UI } from './components/UI';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { I18nProvider } from './contexts/I18nContext';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
-import { OfflineIndicator } from './components/OfflineIndicator';
 
 // ============================================================================
 // CONFIGURATION & CONSTANTS
@@ -378,7 +377,6 @@ const App: React.FC = () => {
                 <LanguageSwitcher />
                 <UI />
                 <PWAInstallPrompt />
-                <OfflineIndicator />
                 <Canvas shadows dpr={[1, 2]} onContextMenu={(e) => e.preventDefault()}>
                     <Suspense fallback={null}>
                         <DynamicBackground />
