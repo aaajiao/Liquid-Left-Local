@@ -1,6 +1,12 @@
 // Service Worker for Liquid Left - Offline Gaming Support
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `liquid-left-${CACHE_VERSION}`;
+
+// Offline fallback response
+const offlineResponse = () => new Response(
+  '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Offline</title></head><body style="background:#000;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif"><div style="text-align:center"><h1>Offline</h1><p>Please connect to the internet and refresh.</p></div></body></html>',
+  { status: 503, headers: { 'Content-Type': 'text/html' } }
+);
 
 // Install: Activate immediately
 self.addEventListener('install', (event) => {
@@ -22,7 +28,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: Network-first with cache fallback
+// Fetch handler
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -37,7 +43,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip Vercel Analytics and Speed Insights
+  // Skip Vercel Analytics and Speed Insights - don't call respondWith
   if (url.hostname.includes('vercel') ||
       url.hostname.includes('vitals') ||
       url.pathname.includes('analytics')) {
@@ -49,17 +55,18 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache the latest version
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(request, responseClone);
           });
           return response;
         })
-        .catch(() => {
-          return caches.match(request).then((cached) => {
-            return cached || caches.match('/');
-          });
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          const indexCached = await caches.match('/');
+          if (indexCached) return indexCached;
+          return offlineResponse();
         })
     );
     return;
@@ -72,15 +79,20 @@ self.addEventListener('fetch', (event) => {
         if (cached) {
           return cached;
         }
-        return fetch(request).then((response) => {
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        });
+        return fetch(request)
+          .then((response) => {
+            if (response.ok) {
+              const responseClone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
+            return response;
+          })
+          .catch(() => {
+            // Return 503 for missing assets when offline
+            return new Response('Resource unavailable offline', { status: 503 });
+          });
       })
     );
     return;
@@ -94,23 +106,28 @@ self.addEventListener('fetch', (event) => {
         if (cached) {
           return cached;
         }
-        return fetch(request).then((response) => {
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        }).catch(() => {
-          // Return empty response for fonts if offline
-          return new Response('', { status: 503 });
-        });
+        return fetch(request)
+          .then((response) => {
+            if (response.ok) {
+              const responseClone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
+            return response;
+          })
+          .catch(() => {
+            return new Response('', { status: 503 });
+          });
       })
     );
     return;
   }
 
-  // Default: Network only (for external resources)
-  event.respondWith(fetch(request));
+  // Default: Network with offline fallback
+  event.respondWith(
+    fetch(request).catch(() => {
+      return new Response('Resource unavailable offline', { status: 503 });
+    })
+  );
 });
