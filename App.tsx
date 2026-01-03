@@ -125,18 +125,27 @@ const LEVEL_THEMES: Record<LevelType, { bg: string, fog: string }> = {
 };
 
 // Hook to update browser theme color based on current game level
+// Only active in browser mode, not in PWA/standalone mode
 const useThemeColor = () => {
     const currentLevel = useGameStore((state) => state.currentLevel);
 
     useEffect(() => {
+        // Check if running in PWA/standalone mode
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: fullscreen)').matches ||
+            (navigator as any).standalone === true;
+
+        // In PWA mode, keep everything black to avoid colored safe-area bars
+        if (isStandalone) {
+            return;
+        }
+
+        // Browser mode: update theme color and body background for each scene
         const theme = LEVEL_THEMES[currentLevel];
         const meta = document.getElementById('theme-color-meta');
-
         if (meta) {
             meta.setAttribute('content', theme.bg);
         }
-
-        // Also update body background to ensure iOS Safari translucency looks correct
         document.body.style.backgroundColor = theme.bg;
     }, [currentLevel]);
 };
