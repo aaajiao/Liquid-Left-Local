@@ -8,7 +8,7 @@
 
 **完成的工作**：
 - ✅ Store 切片化：单体 `store.ts`（694 行）→ `store/{input,level,puzzle,wind,chewing,name,home,dialogue}Slice.ts` + `store/types.ts` + `store/index.ts`。`store.ts` 变成 5 行 barrel；外部 API 与现有所有 import 路径完全保持
-- ✅ App.tsx 拆分：396 行 → 113 行。抽出 `components/{CustomCursor,DynamicBackground,CameraController}.tsx` 和 `hooks/useLevelHotkeys.ts`
+- ✅ App.tsx 拆分：396 行 → 113 行。抽出 `components/{CustomCursor,DynamicBackground,CameraController}.tsx`；`useLevelHotkeys` 保留在 App.tsx 内（先前曾抽到 `hooks/`，但该目录在多 agent 沙箱并行编辑下反复丢失，inline 后从源头消除问题）
 - ✅ Zustand 订阅粒度收紧：移除所有 `const {...} = useGameStore()` 全 store 解构，改为 `useGameStore(s => s.x)` 或 `useShallow`，覆盖 Player/World/Puzzle/UI/CustomCursor
 - ✅ 修复 Rules of Hooks 违规：`WitheredLeafFeature` 抽出为独立组件（原先 hooks 在 `if (feature.type === 'WITHERED_LEAF')` 内调用）
 - ✅ Player 弹弓 ref 化：PROLOGUE 拖拽期间不再每帧 `setSlingshotVector()`，state 仅在拖拽进入/退出时切换

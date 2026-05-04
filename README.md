@@ -83,8 +83,6 @@ npm run preview
 │   └── levelThemes.ts          # Per-level color tables
 ├── contexts/         # React Context providers
 │   └── I18nContext.tsx
-├── hooks/            # App-level hooks
-│   └── useLevelHotkeys.ts      # Dev-only 1..9 chapter jump
 ├── locales/          # i18n translations (zh/en) + Translations interface
 ├── utils/            # Utility functions
 │   └── audio.ts      # Procedural audio synthesis

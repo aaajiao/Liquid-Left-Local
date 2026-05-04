@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrthographicCamera, Environment, BakeShadows } from '@react-three/drei';
-import { useGameStore } from './store';
+import { useGameStore, type LevelType } from './store';
 import { World } from './components/World';
 import { Player } from './components/Player';
 import { PuzzleManager } from './components/Puzzle';
@@ -12,8 +12,30 @@ import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { CustomCursor } from './components/CustomCursor';
 import { DynamicBackground } from './components/DynamicBackground';
 import { CameraController } from './components/CameraController';
-import { useLevelHotkeys } from './hooks/useLevelHotkeys';
 import { LEVEL_THEMES } from './constants/levelThemes';
+
+const LEVEL_ORDER: LevelType[] = [
+    'PROLOGUE', 'LANGUAGE', 'NAME', 'CHEWING', 'WIND',
+    'TRAVEL', 'CONNECTION', 'HOME', 'SUN',
+];
+
+// 1-9 keyboard hotkeys for jumping chapters. Active in dev and production
+// (used as primary navigation, not just debugging).
+const useLevelHotkeys = () => {
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            const target = e.target as HTMLElement | null;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            const idx = Number(e.key) - 1;
+            if (Number.isInteger(idx) && idx >= 0 && idx < LEVEL_ORDER.length) {
+                useGameStore.getState().startLevel(LEVEL_ORDER[idx]);
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, []);
+};
 
 // Hook to get the actual visible viewport height (accounting for mobile browser UI)
 const useViewportHeight = () => {
@@ -79,7 +101,7 @@ const App: React.FC = () => {
     useViewportHeight();
     // Update theme color based on current game level
     useThemeColor();
-    // 1..9 dev hotkeys for jumping between chapters
+    // 1..9 hotkeys for jumping between chapters
     useLevelHotkeys();
 
     return (

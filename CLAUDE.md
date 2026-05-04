@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `src/` is **test-only** — it contains `src/__tests__/` and `src/test/setup.ts`. Do not move source files there or treat it as the source root.
 - The `@/*` TypeScript path alias maps to the **repo root**, so `import X from '@/components/Player'` resolves to `./components/Player.tsx`.
 - `store.ts` is a 5-line **barrel** that re-exports from `store/index.ts`. Real state lives in per-mechanic slices: `store/{inputSlice,levelSlice,puzzleSlice,windSlice,chewingSlice,nameSlice,homeSlice,dialogueSlice}.ts`. Shared types are in `store/types.ts`. Consumers keep importing from `'./store'` / `'@/store'`; do not bypass the barrel.
-- Cross-cutting non-component code: `constants/levelThemes.ts` (per-level color tables — single source of truth for background/player/glow/ground), `hooks/useLevelHotkeys.ts` (dev-only 1..9 chapter jump).
+- Cross-cutting non-component code: `constants/levelThemes.ts` (per-level color tables — single source of truth for background/player/glow/ground). The 1..9 chapter-jump `useLevelHotkeys` hook lives inline at the top of `App.tsx`.
 
 ## Stack
 
@@ -33,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `components/CameraController.tsx` → `CAMERA_CONFIG`, `DEVICE_SCALE_FACTORS`, `CAMERA_CONTROLS`.
   - `constants/levelThemes.ts` → `LEVEL_THEMES` (per-level background/player/glow/ground colors).
   Tune these in place; do not scatter magic numbers into component bodies. Several store tests assert against these constants, so changes may require test updates.
-- Chapter jump: keys `1..9` map to `PROLOGUE..SUN` via `hooks/useLevelHotkeys.ts`. Active in both dev and production builds (intentional — used for navigation, not just debugging). Hotkeys are skipped when a modifier is held or while typing in inputs.
+- Chapter jump: keys `1..9` map to `PROLOGUE..SUN` via the `useLevelHotkeys` hook at the top of `App.tsx`. Active in both dev and production builds (intentional — used for navigation, not just debugging). Hotkeys are skipped when a modifier is held or while typing in inputs.
 - The `WITHERED_LEAF` feature in `components/World.tsx` is its own component (`WitheredLeafFeature`) — its hooks must NOT be inlined back into the `OrganicFeature` switch (would violate Rules of Hooks).
 
 ## PWA
