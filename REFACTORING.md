@@ -229,7 +229,7 @@ const LEVEL_CONSTANTS = {
 ### 场景2: 调整相机视角
 
 ```typescript
-// App.tsx
+// components/CameraController.tsx
 const CAMERA_CONFIG = {
   PROLOGUE: {
     offset: [12, 18, 12],  // 更高的俯视角度
@@ -247,7 +247,7 @@ const PHYSICS_CONFIG = {
   ANALOG_DEADZONE: 0.05    // 减小死区（原0.1）
 };
 
-// App.tsx
+// components/CameraController.tsx
 const CAMERA_CONTROLS = {
   TOUCH_SMOOTH_FACTOR: 0.04,  // 加快相机跟随（原0.02）
   TOUCH_ROTATE_SPEED: 0.5     // 提高旋转速度（原0.4）
@@ -290,63 +290,16 @@ npm run dev
 
 ---
 
-## 📊 性能影响
+## 📊 性能影响（常量提取部分）
 
-所有配置提取都是**零性能开销**的重构：
+2025-12-25 的常量提取是**零运行时开销**的重构：
 
 - ✅ 常量在模块加载时创建一次
 - ✅ 使用 `as const` 确保类型不变性
 - ✅ 不改变运行时逻辑
-- ✅ 27个测试全部通过，确保行为一致
+- ✅ 87 个测试全部通过，确保行为一致
 
----
-
-## 🚀 下一步改进建议
-
-### 优先级1: 可视化配置工具（未来）
-
-创建一个开发工具来实时调整这些参数：
-
-```typescript
-// 未来可能的开发工具
-if (import.meta.env.DEV) {
-  window.__GAME_CONFIG__ = {
-    physics: PHYSICS_CONFIG,
-    levels: LEVEL_CONSTANTS,
-    camera: CAMERA_CONFIG
-  };
-}
-```
-
-### 优先级2: 配置验证（未来）
-
-使用Zod验证配置的合法性：
-
-```typescript
-import { z } from 'zod';
-
-const PhysicsConfigSchema = z.object({
-  MOBILE_MAX_FORCE: z.number().positive(),
-  DESKTOP_MAX_FORCE: z.number().positive(),
-  DAMPING: z.number().min(0).max(1),
-  // ...
-});
-
-// 启动时验证
-PhysicsConfigSchema.parse(PHYSICS_CONFIG);
-```
-
-### 优先级3: A/B测试支持（未来）
-
-为不同的配置方案做A/B测试：
-
-```typescript
-const CONFIG_VARIANT = Math.random() < 0.5 ? 'A' : 'B';
-
-const PHYSICS_CONFIG = CONFIG_VARIANT === 'A'
-  ? { MOBILE_MAX_FORCE: 10.0, ... }
-  : { MOBILE_MAX_FORCE: 12.0, ... };
-```
+> 2026-05-04 的整改包含运行时调整（订阅粒度收紧、弹弓 ref 化、几何体 memo），细节见时间线。
 
 ---
 
@@ -406,9 +359,7 @@ A: 检查测试文件中的预期值是否需要更新以匹配新的配置。
 
 ---
 
-**维护者**: Claude Code Quality Team
-**最后更新**: 2025-12-25
-**版本**: 1.0
+**最后更新**: 2026-05-04（v1.2.0）
 
 ---
 
