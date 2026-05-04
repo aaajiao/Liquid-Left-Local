@@ -28,7 +28,10 @@ src/
 │   ├── store.test.ts             # Store 核心逻辑（关卡机制、连接、咀嚼、风等）
 │   ├── store-extra.test.ts       # 之前未覆盖的 store action（fake timers）
 │   ├── i18n.test.tsx             # I18nProvider / useI18n
-│   └── levelThemes.test.ts       # constants/levelThemes.ts 的完整性检查
+│   ├── levelThemes.test.ts       # constants/levelThemes.ts 的完整性检查
+│   ├── audio.test.ts             # utils/audio.ts 程序化合成 + 音乐生命周期
+│   ├── Player.test.tsx           # Player r3f 集成（关卡切换 / 物理边界 / 收集）
+│   └── World.test.tsx            # World r3f 集成（每个 LevelType + 雨 / 弹幕）
 └── test/
     └── setup.ts                  # 测试环境配置和 Mock
 ```
@@ -42,18 +45,21 @@ src/
 - **visualViewport**: 移动端 viewport 测试支持
 - **ResizeObserver / IntersectionObserver**: Framer Motion 等库需要
 - **navigator.onLine**: 默认 true，UI 离线指示器测试可覆盖
+- **localStorage**: 内存 shim（happy-dom 20 默认 localStorage 不可用，r3f 集成测试需要）
 
 ## 当前测试覆盖率
 
 ```
-Test Files: 4 passed
-Tests: 87 passed
+Test Files: 7 passed
+Tests: 147 passed | 1 skipped (148 total)
 
 Core Module Coverage（覆盖关键路径，非穷尽）:
 - store/*.ts: 关卡链 + 9 个 action 直接覆盖（含 fake-timer 驱动的 triggerRain / triggerHomeMelt）
 - contexts/I18nContext.tsx: 7 个测试，含 localStorage 持久化与 missing-key fallback
 - constants/levelThemes.ts: 9 个 LevelType × 4 个字段穷举
-- utils/audio.ts: 7.82%   ⚠️  (集成测试 backlog)
+- utils/audio.ts: 94.64% 行覆盖（仅未覆盖 MP3 解码成功路径，需真实 fetch+decodeAudioData harness）
+- components/Player.tsx: 7 个集成测试（@react-three/test-renderer，关卡切换 / 边界 clamp / 收集）
+- components/World.tsx: 12 个集成测试 + 1 skipped（PROLOGUE 因 test-renderer 9.1.0 对 THREE.Euler prop 的只读限制）
 - components/Player.tsx: 0%  ⚠️  (需要 r3f harness — backlog)
 ```
 
@@ -212,9 +218,11 @@ jobs:
 - [x] I18nContext 单元测试（2026-05-04 完成）
 - [x] levelThemes 完整性测试（2026-05-04 完成）
 - [x] store 之前未覆盖的 action 测试（fake timers）（2026-05-04 完成）
-- [ ] 提升 audio.ts 测试覆盖率到 >50%
-- [ ] 添加 Player 组件集成测试（需要 r3f test harness）
-- [ ] 添加 World 组件测试
+- [x] 提升 audio.ts 测试覆盖率到 >50%（2026-05-04 完成，最终 94.64%）
+- [x] 添加 Player 组件集成测试（2026-05-04 完成，@react-three/test-renderer）
+- [x] 添加 World 组件测试（2026-05-04 完成）
+- [ ] 解决 World PROLOGUE 用例的 `THREE.Euler` 只读限制（test-renderer 上游问题）
+- [ ] MP3 解码成功路径覆盖（audio.ts 仅剩约 5% 未覆盖）
 - [ ] E2E 测试（使用 Playwright）
 - [ ] 性能测试（FPS 监控）
 

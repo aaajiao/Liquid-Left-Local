@@ -165,3 +165,40 @@ Object.defineProperty(window, 'visualViewport', {
     removeEventListener: () => {}
   }
 });
+
+// === r3f test-renderer mocks ===
+// Tests using @react-three/test-renderer mount real React components that
+// transitively touch APIs happy-dom 20 only stubs partially. The shims below
+// fill the gaps without changing behavior for tests that don't need them.
+
+// 1. localStorage
+//    happy-dom 20 ships an internal `localStorage` driven by Node's
+//    `--localstorage-file` flag; without the flag, calls like
+//    `localStorage.getItem(...)` throw "is not a function" because the
+//    proxy-backed storage isn't materialised. I18nProvider reads localStorage
+//    on mount, and World/Player tests mount components that include
+//    I18nProvider. Replace it globally with an in-memory Storage shim so
+//    every test (including the existing i18n.test.tsx, which already
+//    re-applies its own copy of this shim in beforeAll) sees consistent
+//    behavior.
+{
+  const store = new Map<string, string>();
+  const shim: Storage = {
+    get length() { return store.size; },
+    clear: () => { store.clear(); },
+    getItem: (k: string) => (store.has(k) ? (store.get(k) as string) : null),
+    key: (i: number) => Array.from(store.keys())[i] ?? null,
+    removeItem: (k: string) => { store.delete(k); },
+    setItem: (k: string, v: string) => { store.set(k, String(v)); },
+  };
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    writable: true,
+    value: shim,
+  });
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    writable: true,
+    value: shim,
+  });
+}
