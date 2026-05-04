@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `npm run dev` / `build` / `preview` — Vite.
 - `npm test` (one shot), `npm run test:ui`, `npm run test:coverage`.
-- **No `lint` or `format` npm script** even though ESLint and Prettier are configured. Run them directly: `npx eslint .` and `npx prettier --write .`.
+- **No lint/format pipeline.** `.prettierrc` and `.eslintrc.cjs` exist, but neither `prettier` nor `eslint` is in `package.json` — the configs are read by editor extensions (e.g. VS Code Prettier picks up `.prettierrc` for format-on-save), nothing runs them at the command line. Treat the configs as a record of style intent, not as enforced gates.
 
 ## Game internals — gotchas
 
