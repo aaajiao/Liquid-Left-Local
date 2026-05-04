@@ -89,7 +89,7 @@ npm run preview
 ├── utils/            # Utility functions
 │   └── audio.ts      # Procedural audio synthesis
 ├── App.tsx           # Top-level layout / Canvas mount
-├── docs/             # Reference material (e.g. fiction.txt)
+├── docs/             # Project docs (REFACTORING, TESTING) + reference material
 └── src/
     ├── __tests__/    # Unit and integration tests
     └── test/         # Test setup and mocks
@@ -97,7 +97,7 @@ npm run preview
 
 ### Testing
 
-We maintain comprehensive test coverage to ensure code quality. See [TESTING.md](./TESTING.md) for details.
+We maintain comprehensive test coverage to ensure code quality. See [docs/TESTING.md](./docs/TESTING.md) for details.
 
 ```bash
 # Run all tests
@@ -117,7 +117,7 @@ Current test count: **87 passing** across 4 files (store core + I18n + level the
 
 ### Configuration & Tuning
 
-Game mechanics, physics, and camera settings are now configurable via constants. See [REFACTORING.md](./REFACTORING.md) for the complete guide.
+Game mechanics, physics, and camera settings are now configurable via constants. See [docs/REFACTORING.md](./docs/REFACTORING.md) for the complete guide.
 
 **Quick examples:**
 
