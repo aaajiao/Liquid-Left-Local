@@ -15,7 +15,6 @@ const LEVEL_ORDER: LevelType[] = [
 
 export const useLevelHotkeys = () => {
     useEffect(() => {
-        if (!import.meta.env.DEV) return;
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.metaKey || e.ctrlKey || e.altKey) return;
             const target = e.target as HTMLElement | null;

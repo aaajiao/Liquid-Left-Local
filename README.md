@@ -136,17 +136,10 @@ const CAMERA_CONFIG = {
 
 ### Development Tools
 
-**Keyboard Shortcuts** (dev mode):
-- `1-9`: Jump to specific level
+**Keyboard Shortcuts**:
+- `1-9`: Jump to specific level (PROLOGUE..SUN)
 - `+/-`: Zoom in/out
 - `Alt + Drag`: Alternative camera control
-
-**Browser DevTools**:
-```javascript
-// Access game state (dev mode)
-window.__GAME_DEBUG__?.getState()
-window.__GAME_DEBUG__?.teleportToLevel('WIND')
-```
 
 ## 🎮 Controls
 

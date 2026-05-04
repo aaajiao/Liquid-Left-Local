@@ -33,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `components/CameraController.tsx` → `CAMERA_CONFIG`, `DEVICE_SCALE_FACTORS`, `CAMERA_CONTROLS`.
   - `constants/levelThemes.ts` → `LEVEL_THEMES` (per-level background/player/glow/ground colors).
   Tune these in place; do not scatter magic numbers into component bodies. Several store tests assert against these constants, so changes may require test updates.
-- Dev-only chapter jump: keys `1..9` map to `PROLOGUE..SUN` via `hooks/useLevelHotkeys.ts` (gated by `import.meta.env.DEV`). Hotkeys are skipped while typing in inputs.
+- Chapter jump: keys `1..9` map to `PROLOGUE..SUN` via `hooks/useLevelHotkeys.ts`. Active in both dev and production builds (intentional — used for navigation, not just debugging). Hotkeys are skipped when a modifier is held or while typing in inputs.
 - The `WITHERED_LEAF` feature in `components/World.tsx` is its own component (`WitheredLeafFeature`) — its hooks must NOT be inlined back into the `OrganicFeature` switch (would violate Rules of Hooks).
 
 ## PWA
