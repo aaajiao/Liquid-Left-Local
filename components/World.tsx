@@ -1,11 +1,13 @@
 
 import React, { useMemo, useRef, useState, useEffect, memo } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { MeshDistortMaterial, Sparkles, Cloud, Stars, Text, Float, Billboard, Instance, Instances } from '@react-three/drei';
 import * as THREE from 'three';
-import { useGameStore, EnvFeature } from '../store';
+import { useShallow } from 'zustand/react/shallow';
+import { useGameStore, EnvFeature, LevelType } from '../store';
 import { playBubbleHover, playMushroomHover, playSunHover, playWindBlock, playWindDamage } from '../utils/audio';
 import { useI18n } from '../contexts/I18nContext';
+import { LEVEL_THEMES } from '../constants/levelThemes';
 
 // Shared bone material - created once and reused across all bone meshes
 const BONE_MATERIAL = new THREE.MeshStandardMaterial({
@@ -16,7 +18,11 @@ const BONE_MATERIAL = new THREE.MeshStandardMaterial({
 });
 
 const PhysicsPlane: React.FC = () => {
-    const { setCursorWorldPos, setMouseDown, cancelDrag, interactionMode } = useGameStore();
+    // `interactionMode` is read but unused here; still subscribe via shallow so we
+    // never re-render on every cursor move.
+    const setCursorWorldPos = useGameStore(s => s.setCursorWorldPos);
+    const setMouseDown = useGameStore(s => s.setMouseDown);
+    const cancelDrag = useGameStore(s => s.cancelDrag);
     return (
         <mesh
             rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} visible={true}
@@ -31,7 +37,11 @@ const PhysicsPlane: React.FC = () => {
 }
 
 export const World: React.FC = memo(() => {
-    const { currentLevel, envFeatures, rainLevel } = useGameStore();
+    const { currentLevel, envFeatures, rainLevel } = useGameStore(useShallow(s => ({
+        currentLevel: s.currentLevel,
+        envFeatures: s.envFeatures,
+        rainLevel: s.rainLevel,
+    })));
 
     return (
         <group>
@@ -56,14 +66,9 @@ const BreathingGround: React.FC<{ level: string, rainLevel?: number }> = ({ leve
     const waterColor = useMemo(() => new THREE.Color("#8b0000"), []);
     const groundColor = useMemo(() => new THREE.Color("#2a0a0a"), []);
 
-    let color = "#d88";
-    if (level === 'LANGUAGE') color = "#fff0f5";
-    if (level === 'NAME') color = "#1a0b2e";
-    if (level === 'CHEWING') color = "#90ee90";
-    if (level === 'WIND') color = "#ffe4e1";
-    if (level === 'TRAVEL') color = "#000020";
-    if (level === 'CONNECTION') color = "#fcfbf9"; // Bone White
-    if (level === 'SUN') color = "#2a0a0a";
+    // Ground color is centralized per-level in constants/levelThemes.ts.
+    // `null` falls back to the PROLOGUE color (matches prior behaviour for HOME).
+    const color = LEVEL_THEMES[level as LevelType]?.ground ?? "#d88";
 
     // Dynamic Water Transformation for Sun Finale
     useFrame(() => {
@@ -140,7 +145,16 @@ RibBone.displayName = 'RibBone';
 // --- WIND SYSTEM (Danmaku) ---
 const WindDanmakuSystem: React.FC = () => {
     const instanceRef = useRef<THREE.InstancedMesh>(null);
-    const { playerPos, leafHealth, healLeaf, damageLeaf, triggerPlayerBlock, growPlayer, playerScale, isLevelComplete } = useGameStore();
+    const { playerPos, leafHealth, healLeaf, damageLeaf, triggerPlayerBlock, growPlayer, playerScale, isLevelComplete } = useGameStore(useShallow(s => ({
+        playerPos: s.playerPos,
+        leafHealth: s.leafHealth,
+        healLeaf: s.healLeaf,
+        damageLeaf: s.damageLeaf,
+        triggerPlayerBlock: s.triggerPlayerBlock,
+        growPlayer: s.growPlayer,
+        playerScale: s.playerScale,
+        isLevelComplete: s.isLevelComplete,
+    })));
 
     // Configuration
     const count = 100; // Number of active wind particles allowed
@@ -260,18 +274,19 @@ const WindDanmakuSystem: React.FC = () => {
 }
 
 
-const BubbleFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
-    const { popBubble, setInteractiveHover } = useGameStore();
+const BubbleFeature: React.FC<{ feature: Extract<EnvFeature, { type: 'BUBBLE' }> }> = ({ feature }) => {
+    const popBubble = useGameStore(s => s.popBubble);
+    const setInteractiveHover = useGameStore(s => s.setInteractiveHover);
     const [hover, setHover] = useState(false);
 
-    const handleOver = (e: any) => {
+    const handleOver = (e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
         setHover(true);
         setInteractiveHover(true);
         playBubbleHover();
     };
-    const handleOut = (e: any) => { e.stopPropagation(); setHover(false); setInteractiveHover(false); };
-    const handleClick = (e: any) => { e.stopPropagation(); popBubble(feature.id); setInteractiveHover(false); };
+    const handleOut = (e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setHover(false); setInteractiveHover(false); };
+    const handleClick = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); popBubble(feature.id); setInteractiveHover(false); };
 
     return (
         <Float speed={2} rotationIntensity={1} floatIntensity={2}>
@@ -306,17 +321,19 @@ const BubbleFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
 }
 
 const RealisticMushroom: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
-    const { triggerRain, setInteractiveHover, rainLevel } = useGameStore();
+    const triggerRain = useGameStore(s => s.triggerRain);
+    const setInteractiveHover = useGameStore(s => s.setInteractiveHover);
+    const rainLevel = useGameStore(s => s.rainLevel);
     const [hover, setHover] = useState(false);
 
-    const handleOver = (e: any) => {
+    const handleOver = (e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
         setHover(true);
         setInteractiveHover(true);
         playMushroomHover();
     };
-    const handleOut = (e: any) => { e.stopPropagation(); setHover(false); setInteractiveHover(false); };
-    const handleClick = (e: any) => { e.stopPropagation(); triggerRain(); setInteractiveHover(false); };
+    const handleOut = (e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setHover(false); setInteractiveHover(false); };
+    const handleClick = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); triggerRain(); setInteractiveHover(false); };
 
     // Rising & Dissolving Logic
     const yOffset = rainLevel;
@@ -419,15 +436,15 @@ const SunRainSystem: React.FC<{ count: number, radius: number }> = ({ count, rad
 
 const SunFeature: React.FC<{ feature: EnvFeature, rainLevel: number }> = ({ feature, rainLevel }) => {
     const [hover, setHover] = useState(false);
-    const { setInteractiveHover } = useGameStore();
+    const setInteractiveHover = useGameStore(s => s.setInteractiveHover);
 
-    const handleOver = (e: any) => {
+    const handleOver = (e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
         setHover(true);
         setInteractiveHover(true);
         playSunHover();
     };
-    const handleOut = (e: any) => { e.stopPropagation(); setHover(false); setInteractiveHover(false); };
+    const handleOut = (e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setHover(false); setInteractiveHover(false); };
 
     // Sun disappear logic
     const engulfment = Math.max(0, rainLevel - 6) / 14;
@@ -480,7 +497,7 @@ const SunFeature: React.FC<{ feature: EnvFeature, rainLevel: number }> = ({ feat
     )
 }
 
-const EmotionOrbFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
+const EmotionOrbFeature: React.FC<{ feature: Extract<EnvFeature, { type: 'EMOTION_ORB' }> }> = ({ feature }) => {
     const isTear = feature.data?.type === 'TEAR';
     return (
         <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
@@ -515,8 +532,174 @@ const EmotionOrbFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
     )
 }
 
+// Withered leaf — extracted from OrganicFeature so its hooks (useState x2, useMemo,
+// useI18n) are never called from inside a conditional branch. Owns all WIND-leaf
+// state (hover, dialogue text visibility) and reads health/dialogue stage from
+// the store via narrow selectors.
+const WitheredLeafFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
+    const leafHealth = useGameStore(s => s.leafHealth);
+    const startDialogue = useGameStore(s => s.startDialogue);
+    const dryConversationStage = useGameStore(s => s.dryConversationStage);
+    const setInteractiveHover = useGameStore(s => s.setInteractiveHover);
+    const { translations } = useI18n();
+    const ratio = leafHealth / 100;
+    const [showText, setShowText] = useState(false);
+    const [hover, setHover] = useState(false);
+
+    // Dry's dialogue based on health state and conversation stage
+    const getDryDialogue = () => {
+        const leafDialogue = translations.npc.witheredLeaf;
+        if (ratio < 0.3) {
+            // Withering state - dry wants to wither
+            const witheringLines = leafDialogue.withering;
+            if (dryConversationStage === 0) return witheringLines[0];
+            if (dryConversationStage === 1) return witheringLines[1];
+            return witheringLines[2];
+        } else if (ratio < 0.7) {
+            // Healing state - conflicted
+            return leafDialogue.healing;
+        } else {
+            // Healthy state - grateful
+            return leafDialogue.healthy;
+        }
+    };
+
+    const handleOver = (e: ThreeEvent<PointerEvent>) => {
+        e.stopPropagation();
+        setShowText(true);
+        setHover(true);
+        setInteractiveHover(true);
+    };
+
+    const handleOut = (e: ThreeEvent<PointerEvent>) => {
+        e.stopPropagation();
+        setShowText(false);
+        setHover(false);
+        setInteractiveHover(false);
+    };
+
+    const handleClick = (e: ThreeEvent<MouseEvent>) => {
+        e.stopPropagation();
+        startDialogue('withered-leaf');
+    };
+
+    // Color: Brown -> Green
+    const color = new THREE.Color('#8b4513').lerp(new THREE.Color('#32cd32'), ratio);
+    // Unfurl: Scale x axis from 0.2 (curled/folded) to 1 (flat)
+    const unfurl = 0.2 + ratio * 0.8;
+
+    // Define iconic leaf shape (Teardrop/Oval)
+    const leafShape = useMemo(() => {
+        const s = new THREE.Shape();
+        s.moveTo(0, -1);
+        // Curve out and up to a tip
+        s.bezierCurveTo(0.7, -0.6, 0.9, 0.4, 0, 1.2); // Right Side
+        s.bezierCurveTo(-0.9, 0.4, -0.7, -0.6, 0, -1); // Left Side
+        return s;
+    }, []);
+
+    return (
+        <group position={feature.position} scale={feature.scale} rotation={[-Math.PI / 3, 0, 0]}>
+            <group
+                scale={[unfurl * (hover ? 1.05 : 1), (hover ? 1.05 : 1), (hover ? 1.05 : 1)]}
+                onPointerOver={handleOver}
+                onPointerOut={handleOut}
+                onClick={handleClick}
+            >
+                {/* Main Leaf Blade */}
+                <mesh receiveShadow castShadow>
+                    <shapeGeometry args={[leafShape]} />
+                    <meshStandardMaterial color={color} side={THREE.DoubleSide} roughness={0.6} metalness={0.1} />
+                </mesh>
+
+                {/* Central Vein (Stem) */}
+                <mesh position={[0, 0, 0.02]}>
+                    <boxGeometry args={[0.06, 2.2, 0.05]} />
+                    <meshStandardMaterial color={ratio > 0.5 ? "#228b22" : "#5d4037"} />
+                </mesh>
+
+                {/* Left Side Vein */}
+                <mesh position={[-0.25, 0.1, 0.02]} rotation={[0, 0, Math.PI / 4]}>
+                    <boxGeometry args={[0.04, 0.7, 0.04]} />
+                    <meshStandardMaterial color={ratio > 0.5 ? "#228b22" : "#5d4037"} />
+                </mesh>
+
+                {/* Right Side Vein */}
+                <mesh position={[0.25, 0.3, 0.02]} rotation={[0, 0, -Math.PI / 3.5]}>
+                    <boxGeometry args={[0.04, 0.6, 0.04]} />
+                    <meshStandardMaterial color={ratio > 0.5 ? "#228b22" : "#5d4037"} />
+                </mesh>
+
+                {/* Dry's Dialogue Text */}
+                {showText && (
+                    <Billboard position={[0, 2, 0]}>
+                        <Text
+                            fontSize={0.4}
+                            color={ratio < 0.5 ? "#8b7355" : "#228b22"}
+                            anchorX="center"
+                            anchorY="bottom"
+                            outlineWidth={0.02}
+                            outlineColor="#000"
+                        >
+                            {getDryDialogue()}
+                        </Text>
+                    </Billboard>
+                )}
+
+                {/* Healing Glow - ALWAYS visible, enhanced on hover */}
+                <pointLight
+                    color={ratio > 0.5 ? "#32cd32" : "#ff8c00"}
+                    intensity={hover ? (ratio > 0.3 ? 8 : 4) : (ratio > 0.3 ? 3 : 1.5)}
+                    distance={hover ? 10 : 6}
+                    decay={2}
+                    position={[0, 0, 0.5]}
+                />
+
+                {/* Magical Sparkles - Fixed count with dynamic opacity to prevent buffer errors */}
+                {(() => {
+                    // Don't render at all if health is 90% or above
+                    if (ratio >= 0.9) return null;
+
+                    // Calculate base opacity based on health ratio
+                    let baseOpacity;
+                    if (ratio > 0.7) {
+                        // Linear fade from 70% to 90% health
+                        const fadeProgress = (0.9 - ratio) / 0.2;  // 1.0 at 70%, 0.0 at 90%
+                        baseOpacity = Math.max(0, (hover ? 1.0 : 0.7) * fadeProgress);
+                    } else {
+                        // Full opacity below 70%
+                        baseOpacity = hover ? 1.0 : 0.7;
+                    }
+
+                    // Safety check
+                    if (baseOpacity < 0.01) return null;
+
+                    // Simulate count variation with opacity: INVERTED - more sparkles when unhealthy
+                    const countSimulationOpacity = 1.0 - ratio * 0.8; // Range: 1.0 (sick) to 0.2 (healthy)
+                    const finalOpacity = baseOpacity * countSimulationOpacity;
+
+                    return (
+                        <Sparkles
+                            position={[0, 0, 0]}
+                            count={120} // Fixed at maximum to prevent buffer reallocation
+                            scale={hover ? 1.5 : 1}
+                            color={hover ? (ratio > 0.5 ? "#adff2f" : "#ffa500") : (ratio > 0.5 ? "#00ff00" : "#ff6347")}
+                            size={hover ? (ratio > 0.5 ? 15 : 12) : (ratio > 0.5 ? 6 : 4)}
+                            speed={hover ? 2.5 + ratio * 1.5 : 0.8 + ratio}
+                            opacity={finalOpacity}
+                        />
+                    );
+                })()}
+            </group>
+        </group>
+    )
+};
+
 const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
-    const { rainLevel, hoverFleshBall, setInteractiveHover } = useGameStore();
+    const rainLevel = useGameStore(s => s.rainLevel);
+    const hoverFleshBall = useGameStore(s => s.hoverFleshBall);
+    const setInteractiveHover = useGameStore(s => s.setInteractiveHover);
+    const { translations: fragTranslations } = useI18n();
 
     // --- Prologue ---
     if (feature.type === 'FLESH_TUNNEL') {
@@ -555,7 +738,7 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
                     anchorY="middle"
                     fillOpacity={0.8}
                 >
-                    {feature.data?.char || '碎片'}
+                    {feature.data?.char || fragTranslations.npc.fragmentFallback}
                     <meshBasicMaterial color={feature.color} toneMapped={false} />
                 </Text>
                 <Sparkles count={5} scale={1} size={2} color={feature.color} />
@@ -569,8 +752,8 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
             <mesh
                 position={feature.position}
                 scale={feature.scale}
-                onPointerOver={(e) => { e.stopPropagation(); hoverFleshBall(); }}
-                onPointerOut={(e) => { e.stopPropagation(); setInteractiveHover(false); }}
+                onPointerOver={(e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); hoverFleshBall(); }}
+                onPointerOut={(e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setInteractiveHover(false); }}
             >
                 <sphereGeometry args={[1, 32, 32]} />
                 <MeshDistortMaterial color={feature.color} distort={0.4} speed={1.5} roughness={0.6} />
@@ -588,159 +771,11 @@ const OrganicFeature: React.FC<{ feature: EnvFeature }> = ({ feature }) => {
         )
     }
     if (feature.type === 'WITHERED_LEAF') {
-        const { leafHealth, startDialogue, dryConversationStage, setInteractiveHover } = useGameStore();
-        const { translations } = useI18n();
-        const ratio = leafHealth / 100;
-        const [showText, setShowText] = useState(false);
-        const [hover, setHover] = useState(false);
-
-        // Dry's dialogue based on health state and conversation stage
-        const getDryDialogue = () => {
-            const leafDialogue = translations.npc.witheredLeaf;
-            if (ratio < 0.3) {
-                // Withering state - dry wants to wither
-                const witheringLines = leafDialogue.withering;
-                if (dryConversationStage === 0) return witheringLines[0];
-                if (dryConversationStage === 1) return witheringLines[1];
-                return witheringLines[2];
-            } else if (ratio < 0.7) {
-                // Healing state - conflicted
-                return leafDialogue.healing;
-            } else {
-                // Healthy state - grateful
-                return leafDialogue.healthy;
-            }
-        };
-
-        const handleOver = (e: any) => {
-            e.stopPropagation();
-            setShowText(true);
-            setHover(true);
-            setInteractiveHover(true);
-        };
-
-        const handleOut = (e: any) => {
-            e.stopPropagation();
-            setShowText(false);
-            setHover(false);
-            setInteractiveHover(false);
-        };
-
-        const handleClick = (e: any) => {
-            e.stopPropagation();
-            startDialogue('withered-leaf');
-        };
-
-        // Color: Brown -> Green
-        const color = new THREE.Color('#8b4513').lerp(new THREE.Color('#32cd32'), ratio);
-        // Unfurl: Scale x axis from 0.2 (curled/folded) to 1 (flat)
-        const unfurl = 0.2 + ratio * 0.8;
-
-        // Define iconic leaf shape (Teardrop/Oval)
-        const leafShape = useMemo(() => {
-            const s = new THREE.Shape();
-            s.moveTo(0, -1);
-            // Curve out and up to a tip
-            s.bezierCurveTo(0.7, -0.6, 0.9, 0.4, 0, 1.2); // Right Side
-            s.bezierCurveTo(-0.9, 0.4, -0.7, -0.6, 0, -1); // Left Side
-            return s;
-        }, []);
-
-        return (
-            <group position={feature.position} scale={feature.scale} rotation={[-Math.PI / 3, 0, 0]}>
-                <group
-                    scale={[unfurl * (hover ? 1.05 : 1), (hover ? 1.05 : 1), (hover ? 1.05 : 1)]}
-                    onPointerOver={handleOver}
-                    onPointerOut={handleOut}
-                    onClick={handleClick}
-                >
-                    {/* Main Leaf Blade */}
-                    <mesh receiveShadow castShadow>
-                        <shapeGeometry args={[leafShape]} />
-                        <meshStandardMaterial color={color} side={THREE.DoubleSide} roughness={0.6} metalness={0.1} />
-                    </mesh>
-
-                    {/* Central Vein (Stem) */}
-                    <mesh position={[0, 0, 0.02]}>
-                        <boxGeometry args={[0.06, 2.2, 0.05]} />
-                        <meshStandardMaterial color={ratio > 0.5 ? "#228b22" : "#5d4037"} />
-                    </mesh>
-
-                    {/* Left Side Vein */}
-                    <mesh position={[-0.25, 0.1, 0.02]} rotation={[0, 0, Math.PI / 4]}>
-                        <boxGeometry args={[0.04, 0.7, 0.04]} />
-                        <meshStandardMaterial color={ratio > 0.5 ? "#228b22" : "#5d4037"} />
-                    </mesh>
-
-                    {/* Right Side Vein */}
-                    <mesh position={[0.25, 0.3, 0.02]} rotation={[0, 0, -Math.PI / 3.5]}>
-                        <boxGeometry args={[0.04, 0.6, 0.04]} />
-                        <meshStandardMaterial color={ratio > 0.5 ? "#228b22" : "#5d4037"} />
-                    </mesh>
-
-                    {/* Dry's Dialogue Text */}
-                    {showText && (
-                        <Billboard position={[0, 2, 0]}>
-                            <Text
-                                fontSize={0.4}
-                                color={ratio < 0.5 ? "#8b7355" : "#228b22"}
-                                anchorX="center"
-                                anchorY="bottom"
-                                outlineWidth={0.02}
-                                outlineColor="#000"
-                            >
-                                {getDryDialogue()}
-                            </Text>
-                        </Billboard>
-                    )}
-
-                    {/* Healing Glow - ALWAYS visible, enhanced on hover */}
-                    <pointLight
-                        color={ratio > 0.5 ? "#32cd32" : "#ff8c00"}
-                        intensity={hover ? (ratio > 0.3 ? 8 : 4) : (ratio > 0.3 ? 3 : 1.5)}
-                        distance={hover ? 10 : 6}
-                        decay={2}
-                        position={[0, 0, 0.5]}
-                    />
-
-                    {/* Magical Sparkles - Fixed count with dynamic opacity to prevent buffer errors */}
-                    {(() => {
-                        // Don't render at all if health is 90% or above
-                        if (ratio >= 0.9) return null;
-
-                        // Calculate base opacity based on health ratio
-                        let baseOpacity;
-                        if (ratio > 0.7) {
-                            // Linear fade from 70% to 90% health
-                            const fadeProgress = (0.9 - ratio) / 0.2;  // 1.0 at 70%, 0.0 at 90%
-                            baseOpacity = Math.max(0, (hover ? 1.0 : 0.7) * fadeProgress);
-                        } else {
-                            // Full opacity below 70%
-                            baseOpacity = hover ? 1.0 : 0.7;
-                        }
-
-                        // Safety check
-                        if (baseOpacity < 0.01) return null;
-
-                        // Simulate count variation with opacity: INVERTED - more sparkles when unhealthy
-                        const countSimulationOpacity = 1.0 - ratio * 0.8; // Range: 1.0 (sick) to 0.2 (healthy)
-                        const finalOpacity = baseOpacity * countSimulationOpacity;
-
-                        return (
-                            <Sparkles
-                                position={[0, 0, 0]}
-                                count={120} // Fixed at maximum to prevent buffer reallocation
-                                scale={hover ? 1.5 : 1}
-                                color={hover ? (ratio > 0.5 ? "#adff2f" : "#ffa500") : (ratio > 0.5 ? "#00ff00" : "#ff6347")}
-                                size={hover ? (ratio > 0.5 ? 15 : 12) : (ratio > 0.5 ? 6 : 4)}
-                                speed={hover ? 2.5 + ratio * 1.5 : 0.8 + ratio}
-                                opacity={finalOpacity}
-                            />
-                        );
-                    })()}
-                </group>
-            </group>
-        )
+        // CRITICAL: WitheredLeaf has its own hooks (useState/useI18n/useMemo). Calling
+        // them inside a conditional branch of OrganicFeature would violate the Rules of
+        // Hooks once `envFeatures` reorders or gains/loses a WITHERED_LEAF entry. Keep
+        // all leaf-specific hooks in a dedicated component.
+        return <WitheredLeafFeature feature={feature} />
     }
 
     // --- Travel ---

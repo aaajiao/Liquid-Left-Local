@@ -1,6 +1,33 @@
 // Service Worker for Liquid Left - Offline Gaming Support
-const CACHE_VERSION = 'v3';
+//
+// Caching strategy summary:
+//   - Navigation requests (HTML / mode === 'navigate'):
+//       network-first, fall back to cached request, then to '/' / '/index.html',
+//       finally to the inline offline page. The HTML shell is cheap to refetch
+//       and we want the latest one when online.
+//   - Same-origin static assets (hashed JS/CSS chunks emitted by Vite, the SW
+//     itself, the webmanifest, audio under /sound/, the favicon set):
+//       cache-first. Vite hashes filenames so any change ships under a new
+//       URL — treating these as immutable is correct, and `activate` clears
+//       all stale caches whose name does not match CACHE_NAME below.
+//   - Google Fonts: cache-first (small, immutable per URL).
+//   - Anything else: network only.
+//
+// Bumping CACHE_VERSION wipes every prior cache during `activate` (see below).
+// Bump it whenever the precache list, fetch handler, or any non-hashed cached
+// asset changes. Hashed Vite chunks do NOT require a bump.
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `liquid-left-${CACHE_VERSION}`;
+
+// Precache list: navigation fallbacks + assets we ship by stable URL (no hash
+// in the filename). Hashed Vite chunks are populated lazily by the same-origin
+// cache-first branch in the fetch handler.
+const PRECACHE_URLS = [
+  '/',
+  '/index.html',
+  '/favicon/site.webmanifest',
+  '/sound/sun.mp3',
+];
 
 // Offline fallback response
 const offlineResponse = () => new Response(
@@ -8,9 +35,15 @@ const offlineResponse = () => new Response(
   { status: 503, headers: { 'Content-Type': 'text/html' } }
 );
 
-// Install: Activate immediately
+// Install: precache navigation shell + stable-URL assets, then activate
+// immediately. addAll is atomic — if any URL fails the install fails, which is
+// what we want: a partial precache is worse than no precache.
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting())
+  );
 });
 
 // Activate: Clean up old caches and take control
@@ -50,7 +83,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For navigation requests (HTML): Network first, cache fallback
+  // Navigation requests (HTML shell): network-first, then cached request URL,
+  // then the precached '/' or '/index.html', then the inline offline page.
+  // We always want the freshest HTML when online, but we MUST be able to boot
+  // the SPA from cache when offline — that's why '/' and '/index.html' are
+  // precached during `install`.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -64,7 +101,9 @@ self.addEventListener('fetch', (event) => {
         .catch(async () => {
           const cached = await caches.match(request);
           if (cached) return cached;
-          const indexCached = await caches.match('/');
+          const rootCached = await caches.match('/');
+          if (rootCached) return rootCached;
+          const indexCached = await caches.match('/index.html');
           if (indexCached) return indexCached;
           return offlineResponse();
         })
@@ -72,7 +111,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For same-origin assets: Cache first, network fallback
+  // Same-origin assets: cache-first, populate on miss. Vite emits hashed
+  // filenames for JS/CSS chunks (e.g. /assets/index-AbCd1234.js) so each
+  // build's URLs are unique — treating cached responses as immutable is safe.
+  // Stale caches from older CACHE_VERSION values are deleted in `activate`.
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.match(request).then((cached) => {

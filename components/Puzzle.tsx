@@ -1,8 +1,9 @@
 
 import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Line, Float, MeshDistortMaterial, Sparkles, Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore, NodeData } from '../store';
 import { playConnect, playFlow } from '../utils/audio';
 
@@ -14,7 +15,9 @@ const SwayingHairBeam: React.FC<{ color: string }> = ({ color }) => {
             const t = state.clock.elapsedTime;
             curve.points[1].x = Math.sin(t * 1.2) * 0.2; curve.points[1].z = Math.cos(t) * 0.2;
             curve.points[3].x = Math.sin(t * 0.6 + 2) * 2.0; curve.points[3].z = Math.cos(t * 0.5 + 2) * 2.0;
-            lineRef.current.geometry.setFromPoints(curve.getPoints(50));
+            // 20 segments is plenty for the beam silhouette and halves the
+            // per-frame buffer write cost vs. the previous 50.
+            lineRef.current.geometry.setFromPoints(curve.getPoints(20));
         }
     });
     return <line ref={lineRef as any}><bufferGeometry /><lineBasicMaterial color={color} transparent opacity={0.4} linewidth={1} blending={THREE.AdditiveBlending} /></line>;
@@ -81,7 +84,7 @@ const Chapter6NodeVisual: React.FC<{ connected: boolean }> = ({ connected }) => 
 
 const NeuralPulseLine: React.FC<{ dist: number }> = ({ dist }) => {
     const meshRef = useRef<THREE.Mesh>(null);
-    const { isLevelComplete } = useGameStore();
+    const isLevelComplete = useGameStore(s => s.isLevelComplete);
 
     // Static geometry created once
     const geometry = useMemo(() => {
@@ -183,11 +186,15 @@ const NeuralPulseLine: React.FC<{ dist: number }> = ({ dist }) => {
 }
 
 const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [number, number, number] }> = ({ start, end }) => {
-    const { nodes } = useGameStore();
+    const nodes = useGameStore(s => s.nodes);
     const startV = useMemo(() => new THREE.Vector3(...start), [start]);
     const endV = useMemo(() => new THREE.Vector3(...end), [end]);
-    const dist = startV.distanceTo(endV);
-    const mid = new THREE.Vector3().addVectors(startV, endV).multiplyScalar(0.5);
+    const dist = useMemo(() => startV.distanceTo(endV), [startV, endV]);
+    // `mid` was a fresh Vector3 every render — memoize on the same deps as startV/endV
+    const mid = useMemo(
+        () => new THREE.Vector3().addVectors(startV, endV).multiplyScalar(0.5),
+        [startV, endV],
+    );
 
     // Check if all nodes connected
     const allConnected = nodes.every(n => n.connected);
@@ -288,12 +295,22 @@ const Chapter6Connection: React.FC<{ start: [number, number, number]; end: [numb
 }
 
 const Node: React.FC<{ data: NodeData }> = ({ data }) => {
-    const { setHoveredNode, startDragConnection, completeConnection, draggingNodeId, currentLevel, sequenceOrder, nextSequenceIndex } = useGameStore();
+    // `draggingNodeId` was destructured but never read in this component.
+    // Drop the dead subscription; keep the rest behind a single shallow
+    // selector so unrelated store writes (cursor moves, etc.) never re-render.
+    const { setHoveredNode, startDragConnection, completeConnection, currentLevel, sequenceOrder, nextSequenceIndex } = useGameStore(useShallow(s => ({
+        setHoveredNode: s.setHoveredNode,
+        startDragConnection: s.startDragConnection,
+        completeConnection: s.completeConnection,
+        currentLevel: s.currentLevel,
+        sequenceOrder: s.sequenceOrder,
+        nextSequenceIndex: s.nextSequenceIndex,
+    })));
     const isSequenceMode = currentLevel === 'LANGUAGE';
     const isNextInSequence = isSequenceMode && sequenceOrder.indexOf(data.id) === nextSequenceIndex;
     const isInteractive = isSequenceMode ? isNextInSequence : true;
 
-    const handleDown = (e: any) => {
+    const handleDown = (e: ThreeEvent<PointerEvent>) => {
         if (!isInteractive || currentLevel === 'CONNECTION') return;
         e.stopPropagation(); (e.target as Element).releasePointerCapture(e.pointerId);
         startDragConnection(data.id); playFlow();
@@ -328,27 +345,61 @@ const GhostLineToNext: React.FC<{ currentPos: [number, number, number], nextId: 
 }
 
 const DraggingThread: React.FC = () => {
-    const { draggingNodeId, nodes, cursorWorldPos, hoveredNodeId } = useGameStore();
-    if (!draggingNodeId) return null;
-    const startNode = nodes.find(n => n.id === draggingNodeId);
-    if (!startNode) return null;
-    const start = new THREE.Vector3(...startNode.position);
-    let end = cursorWorldPos;
-    if (hoveredNodeId && hoveredNodeId !== draggingNodeId) { const target = nodes.find(n => n.id === hoveredNodeId); if (target) end = new THREE.Vector3(...target.position); }
-    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5); mid.y += 1.0;
-    return <Line points={new THREE.QuadraticBezierCurve3(start, mid, end).getPoints(20)} color="#00ffff" lineWidth={4} transparent opacity={0.7} dashed />
+    const { draggingNodeId, nodes, cursorWorldPos, hoveredNodeId } = useGameStore(useShallow(s => ({
+        draggingNodeId: s.draggingNodeId,
+        nodes: s.nodes,
+        cursorWorldPos: s.cursorWorldPos,
+        hoveredNodeId: s.hoveredNodeId,
+    })));
+    // Curve sample points are recomputed only when the underlying inputs change
+    // (drag/hover transitions, cursor moves). The shallow selector above means
+    // a cursor-move re-runs this — but with stable refs for nodes/draggingNodeId
+    // the memoised result is unchanged when only sibling fields move.
+    const points = useMemo(() => {
+        if (!draggingNodeId) return null;
+        const startNode = nodes.find(n => n.id === draggingNodeId);
+        if (!startNode) return null;
+        const start = new THREE.Vector3(...startNode.position);
+        let end = cursorWorldPos;
+        if (hoveredNodeId && hoveredNodeId !== draggingNodeId) {
+            const target = nodes.find(n => n.id === hoveredNodeId);
+            if (target) end = new THREE.Vector3(...target.position);
+        }
+        const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+        mid.y += 1.0;
+        return new THREE.QuadraticBezierCurve3(start, mid, end).getPoints(20);
+    }, [draggingNodeId, nodes, cursorWorldPos, hoveredNodeId]);
+
+    if (!points) return null;
+    return <Line points={points} color="#00ffff" lineWidth={4} transparent opacity={0.7} dashed />
 }
 
 const BodyTether: React.FC = () => {
-    const { tetheredNodeId, playerPos, nodes, currentLevel } = useGameStore();
-    if (currentLevel !== 'CONNECTION' || !tetheredNodeId) return null;
-    const node = nodes.find(n => n.id === tetheredNodeId);
-    if (!node) return null;
-    return <Line points={[new THREE.Vector3(...node.position), playerPos]} color="#ffd700" lineWidth={3} transparent opacity={0.6} />
+    const { tetheredNodeId, playerPos, nodes, currentLevel } = useGameStore(useShallow(s => ({
+        tetheredNodeId: s.tetheredNodeId,
+        playerPos: s.playerPos,
+        nodes: s.nodes,
+        currentLevel: s.currentLevel,
+    })));
+    // Memoize the two-point array so drei's <Line> doesn't re-build its
+    // LineGeometry buffer every render when only an unrelated store field moves.
+    const points = useMemo(() => {
+        if (currentLevel !== 'CONNECTION' || !tetheredNodeId) return null;
+        const node = nodes.find(n => n.id === tetheredNodeId);
+        if (!node) return null;
+        return [new THREE.Vector3(...node.position), playerPos];
+    }, [currentLevel, tetheredNodeId, nodes, playerPos]);
+
+    if (!points) return null;
+    return <Line points={points} color="#ffd700" lineWidth={3} transparent opacity={0.6} />
 }
 
 export const PuzzleManager: React.FC = () => {
-    const { nodes, connections, currentLevel } = useGameStore();
+    const { nodes, connections, currentLevel } = useGameStore(useShallow(s => ({
+        nodes: s.nodes,
+        connections: s.connections,
+        currentLevel: s.currentLevel,
+    })));
     return (
         <group>
             {nodes.map((node) => <Node key={node.id} data={node} />)}

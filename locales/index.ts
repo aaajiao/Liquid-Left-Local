@@ -18,6 +18,7 @@ export interface Translations {
         language: string;
         chinese: string;
         english: string;
+        offline: string;
     };
     npc: {
         witheredLeaf: {
@@ -25,6 +26,19 @@ export interface Translations {
             healing: string;
             healthy: string;
         };
+        fragmentFallback: string;
+    };
+    pwa: {
+        title: string;
+        description: string;
+        descriptionIos: string;
+        descriptionIosChrome: string;
+        iosChromeStep1: string;
+        iosChromeStep2: string;
+        iosStep1: string;
+        iosStep2: string;
+        install: string;
+        later: string;
     };
 }
 

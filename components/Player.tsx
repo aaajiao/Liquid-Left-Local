@@ -3,8 +3,10 @@ import React, { useRef, useState, useLayoutEffect, useEffect, Suspense, useMemo 
 import { useFrame } from '@react-three/fiber';
 import { Line, Sparkles, Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
-import { useGameStore, LevelType } from '../store';
+import { useShallow } from 'zustand/react/shallow';
+import { useGameStore } from '../store';
 import { playStep, playConnect, playSqueeze, playSqueezeMax, playOrbBounce, playOrbFusion, playPaSound } from '../utils/audio';
+import { LEVEL_THEMES } from '../constants/levelThemes';
 
 // ============================================================================
 // CONFIGURATION & CONSTANTS
@@ -107,22 +109,6 @@ const LEVEL_CONSTANTS = {
   }
 } as const;
 
-/**
- * Visual theme configuration for each level
- * Defines color palette for player appearance per level
- */
-const PLAYER_THEMES: Record<LevelType, { shell: string, core: string, aura: string, emissive: string, sparkle: string }> = {
-    PROLOGUE: { shell: "#ffebef", core: "#ffffff", aura: "#ff1493", emissive: "#ff69b4", sparkle: "#fff" },
-    LANGUAGE: { shell: "#2a0a5e", core: "#00ffff", aura: "#000000", emissive: "#00ced1", sparkle: "#00ffff" },
-    NAME: { shell: "#ffffff", core: "#ffd700", aura: "#000000", emissive: "#ffffff", sparkle: "#ffd700" },
-    CHEWING: { shell: "#98fb98", core: "#006400", aura: "#2e8b57", emissive: "#3cb371", sparkle: "#00ff00" },
-    WIND: { shell: "#f5deb3", core: "#8b4513", aura: "#a0522d", emissive: "#d2691e", sparkle: "#f4a460" },
-    TRAVEL: { shell: "#00008b", core: "#ffffff", aura: "#191970", emissive: "#4169e1", sparkle: "#87cefa" },
-    CONNECTION: { shell: "#8b4500", core: "#ffd700", aura: "#2d0a1e", emissive: "#ff8c00", sparkle: "#ffd700" },
-    HOME: { shell: "#ffffff", core: "#e0ffff", aura: "#87cefa", emissive: "#b0e0e6", sparkle: "#00bfff" },
-    SUN: { shell: "#800000", core: "#ff4500", aura: "#000000", emissive: "#b22222", sparkle: "#ff6347" }
-};
-
 export const Player: React.FC = () => {
     const groupRef = useRef<THREE.Group>(null);
     const bodyGroupRef = useRef<THREE.Group>(null);
@@ -131,18 +117,46 @@ export const Player: React.FC = () => {
     const auraRef = useRef<THREE.MeshBasicMaterial>(null);
     const fresnelMaterialRef = useRef<THREE.ShaderMaterial>(null);
 
+    // Subscribe via useShallow: one subscription with reference-equality on the
+    // selected object so any unrelated store write (e.g. cursor moves) does not
+    // re-render Player. `healLeaf` was previously destructured but never read;
+    // dropping it removes a dead subscription without changing behavior.
     const {
         cursorWorldPos, isMouseDown, interactionMode, updatePlayerPos, currentLevel, envFeatures,
-        playerScale, fragmentsCollected, absorbFragment, growPlayer, healLeaf, selectVehicle, rainLevel,
+        playerScale, fragmentsCollected, absorbFragment, growPlayer, selectVehicle, rainLevel,
         lastBlockTime, isLevelComplete, isHomeMelting, homeMeltProgress
-    } = useGameStore();
+    } = useGameStore(useShallow(s => ({
+        cursorWorldPos: s.cursorWorldPos,
+        isMouseDown: s.isMouseDown,
+        interactionMode: s.interactionMode,
+        updatePlayerPos: s.updatePlayerPos,
+        currentLevel: s.currentLevel,
+        envFeatures: s.envFeatures,
+        playerScale: s.playerScale,
+        fragmentsCollected: s.fragmentsCollected,
+        absorbFragment: s.absorbFragment,
+        growPlayer: s.growPlayer,
+        selectVehicle: s.selectVehicle,
+        rainLevel: s.rainLevel,
+        lastBlockTime: s.lastBlockTime,
+        isLevelComplete: s.isLevelComplete,
+        isHomeMelting: s.isHomeMelting,
+        homeMeltProgress: s.homeMeltProgress,
+    })));
 
-    const theme = PLAYER_THEMES[currentLevel];
+    const theme = LEVEL_THEMES[currentLevel].player;
 
     const velocity = useRef(new THREE.Vector3(0, 0, 0));
     const position = useRef(useGameStore.getState().playerPos.clone());
     const dragStartPos = useRef<THREE.Vector3 | null>(null);
-    const [slingshotVector, setSlingshotVector] = useState<THREE.Vector3 | null>(null);
+    // Slingshot:
+    // - `slingshotActive` (state) is a boolean that toggles only on enter/exit so
+    //   we mount/unmount the indicator <Line>; it does NOT change every frame.
+    // - `slingshotVectorRef` (ref) holds the live pull vector each frame; the
+    //   indicator reads it via useFrame and updates Line geometry imperatively.
+    // This eliminates the 60Hz React render storm during PROLOGUE drags.
+    const [slingshotActive, setSlingshotActive] = useState(false);
+    const slingshotVectorRef = useRef<THREE.Vector3>(new THREE.Vector3());
     const lastSqueezeSoundTime = useRef(0);
     const lastBounceTime = useRef(0); // Debounce for orb sounds
     const squeezeIntensity = useRef(0); // 0 to 1
@@ -154,8 +168,12 @@ export const Player: React.FC = () => {
     // Mobile detection for physics tuning
     const isTouch = typeof window !== 'undefined' && window.matchMedia("(pointer: coarse)").matches;
 
-    const exitFeature = envFeatures.find(f => f.type === 'EXIT_GATE');
-    const exitPos = exitFeature ? new THREE.Vector3(...exitFeature.position) : null;
+    // EXIT_GATE lookup + Vector3 alloc were running every render. Memoize so
+    // they recompute only when the feature list (or its EXIT_GATE entry) changes.
+    const exitPos = useMemo(() => {
+        const exitFeature = envFeatures.find(f => f.type === 'EXIT_GATE');
+        return exitFeature ? new THREE.Vector3(...exitFeature.position) : null;
+    }, [envFeatures]);
 
     // Pre-filter envFeatures by type to avoid full array scans in useFrame
     const fragments = useMemo(() => envFeatures.filter(f => f.type === 'FRAGMENT'), [envFeatures]);
@@ -480,19 +498,29 @@ export const Player: React.FC = () => {
         }
 
         // 3. SLINGSHOT (Prologue)
+        // Per-frame pull vector lives in `slingshotVectorRef` (ref). React state
+        // (`slingshotActive`) only flips on enter/exit so the indicator <Line>
+        // mounts/unmounts; the line itself updates its geometry imperatively each
+        // frame via SlingshotIndicator's useFrame.
         else if (interactionMode === 'SLINGSHOT') {
             if (isMouseDown) {
-                if (!dragStartPos.current) dragStartPos.current = cursorWorldPos.clone();
+                if (!dragStartPos.current) {
+                    dragStartPos.current = cursorWorldPos.clone();
+                }
                 tempPull.current.subVectors(dragStartPos.current, cursorWorldPos);
                 if (tempPull.current.length() > PHYSICS_CONFIG.SLINGSHOT_MAX_PULL) {
                     tempPull.current.setLength(PHYSICS_CONFIG.SLINGSHOT_MAX_PULL);
                 }
-                setSlingshotVector(tempPull.current.clone());
+                slingshotVectorRef.current.copy(tempPull.current);
+                if (!slingshotActive) {
+                    setSlingshotActive(true); // one-shot: enter drag
+                }
             } else {
-                if (dragStartPos.current && slingshotVector) {
-                    vel.add(slingshotVector.clone().multiplyScalar(PHYSICS_CONFIG.SLINGSHOT_FORCE_MULTIPLIER));
+                if (dragStartPos.current && slingshotActive) {
+                    vel.add(tempPull.current.copy(slingshotVectorRef.current).multiplyScalar(PHYSICS_CONFIG.SLINGSHOT_FORCE_MULTIPLIER));
                     dragStartPos.current = null;
-                    setSlingshotVector(null);
+                    slingshotVectorRef.current.set(0, 0, 0);
+                    setSlingshotActive(false); // one-shot: exit drag
                     playStep();
                 }
             }
@@ -649,7 +677,8 @@ export const Player: React.FC = () => {
         velocity.current.set(0, 0, 0);
         position.current.copy(useGameStore.getState().playerPos);
         dragStartPos.current = null;
-        setSlingshotVector(null);
+        slingshotVectorRef.current.set(0, 0, 0);
+        setSlingshotActive(false);
         // Reset visual scale for new level
         currentRenderScale.current = 1;
     }, [currentLevel]);
@@ -784,8 +813,8 @@ export const Player: React.FC = () => {
 
             <pointLight intensity={3 * combinedOpacity} distance={6} color={theme.emissive} decay={2} />
 
-            {interactionMode === 'SLINGSHOT' && slingshotVector && (
-                <Line points={[new THREE.Vector3(0, 0, 0), slingshotVector.clone().multiplyScalar(-1)]} color="#fff" lineWidth={4} transparent opacity={0.5} />
+            {interactionMode === 'SLINGSHOT' && slingshotActive && (
+                <SlingshotIndicator vectorRef={slingshotVectorRef} />
             )}
 
             {/* Pa Thought Bubbles - Wrapped in Suspense to prevent scene reload on font load */}
@@ -793,6 +822,39 @@ export const Player: React.FC = () => {
                 <PaThoughtBubbles playerPos={position.current} theme={theme} />
             </Suspense>
         </group>
+    );
+};
+
+// Slingshot indicator — drei's <Line> wraps a Line2 whose geometry exposes
+// `setPositions(number[])`. Mount once when the drag starts and update its
+// position buffer each frame via useFrame, instead of re-rendering Player at
+// 60 Hz to push a fresh React `points` prop through drei's memoised diff.
+const SLINGSHOT_INITIAL_POINTS: [THREE.Vector3, THREE.Vector3] = [
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 0, 0),
+];
+const SlingshotIndicator: React.FC<{ vectorRef: React.MutableRefObject<THREE.Vector3> }> = ({ vectorRef }) => {
+    const lineRef = useRef<any>(null);
+    useFrame(() => {
+        const line = lineRef.current;
+        if (!line) return;
+        // Match the previous behaviour: indicator stretches from the player
+        // (origin) to the negated pull vector (preview of release direction).
+        const v = vectorRef.current;
+        const geom = line.geometry;
+        if (geom && typeof geom.setPositions === 'function') {
+            geom.setPositions([0, 0, 0, -v.x, -v.y, -v.z]);
+        }
+    });
+    return (
+        <Line
+            ref={lineRef}
+            points={SLINGSHOT_INITIAL_POINTS}
+            color="#fff"
+            lineWidth={4}
+            transparent
+            opacity={0.5}
+        />
     );
 };
 

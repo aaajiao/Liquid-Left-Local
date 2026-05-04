@@ -86,7 +86,8 @@
         "meltIntoOne": "Melt into one",
         "language": "Language",
         "chinese": "中文",
-        "english": "English"
+        "english": "English",
+        "offline": "Offline"
     },
     "npc": {
         "witheredLeaf": {
@@ -97,6 +98,19 @@
             ],
             "healing": "It hurts...but I don't need liquid!",
             "healthy": "Thank you, nice to meet you, little drop."
-        }
+        },
+        "fragmentFallback": "fragment"
+    },
+    "pwa": {
+        "title": "Fullscreen Experience",
+        "description": "Add to Home Screen for a fullscreen experience",
+        "descriptionIos": "Follow these steps:",
+        "descriptionIosChrome": "Please open this page in Safari:",
+        "iosChromeStep1": "① Tap ⋯ menu (bottom right)",
+        "iosChromeStep2": "② Select \"Open in Safari\"",
+        "iosStep1": "① Tap Safari Share button below",
+        "iosStep2": "② Select \"Add to Home Screen\"",
+        "install": "Install",
+        "later": "Got it"
     }
 }

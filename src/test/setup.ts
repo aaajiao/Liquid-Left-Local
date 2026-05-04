@@ -1,4 +1,4 @@
-import { expect, afterEach } from 'vitest';
+import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
@@ -20,7 +20,7 @@ const createMockAudioParam = () => ({
   cancelAndHoldAtTime: () => {}
 });
 
-global.AudioContext = class MockAudioContext {
+class MockAudioContext {
   createBufferSource() {
     return {
       buffer: null,
@@ -102,7 +102,43 @@ global.AudioContext = class MockAudioContext {
       sampleRate: 44100
     });
   }
-} as any;
+}
+
+global.AudioContext = MockAudioContext as any;
+// Safari prefixed alias — some code paths fall back to webkitAudioContext.
+(global as any).webkitAudioContext = MockAudioContext as any;
+(window as any).webkitAudioContext = MockAudioContext as any;
+
+// ResizeObserver — used by various UI primitives (popovers, virtualized lists).
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+global.ResizeObserver = MockResizeObserver as any;
+(window as any).ResizeObserver = MockResizeObserver as any;
+
+// IntersectionObserver — used by lazy mounts.
+class MockIntersectionObserver {
+  root: Element | null = null;
+  rootMargin: string = '';
+  thresholds: ReadonlyArray<number> = [];
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords(): IntersectionObserverEntry[] { return []; }
+}
+global.IntersectionObserver = MockIntersectionObserver as any;
+(window as any).IntersectionObserver = MockIntersectionObserver as any;
+
+// navigator.onLine — default true; tests can override via Object.defineProperty.
+if (typeof navigator !== 'undefined' && !('onLine' in navigator)) {
+  Object.defineProperty(navigator, 'onLine', {
+    configurable: true,
+    writable: true,
+    value: true,
+  });
+}
 
 // Mock matchMedia for responsive checks
 Object.defineProperty(window, 'matchMedia', {

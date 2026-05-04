@@ -11,7 +11,7 @@ export const PWAInstallPrompt: React.FC = () => {
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [showPrompt, setShowPrompt] = useState(false);
     const [isInstalled, setIsInstalled] = useState(false);
-    const { lang } = useI18n();
+    const { translations } = useI18n();
 
     // Detect if already installed as PWA
     const isStandalone = typeof window !== 'undefined' && (
@@ -87,32 +87,23 @@ export const PWAInstallPrompt: React.FC = () => {
     // Detect if using Chrome on iOS (CriOS is Chrome's iOS user agent identifier)
     const isIOSChrome = isIOS && /CriOS/.test(navigator.userAgent);
 
-    const textContent = lang === 'zh' ? {
-        title: '获得全屏体验',
-        description: isIOSChrome
-            ? '请在 Safari 中打开此页面：'
-            : isIOS
-                ? '请按以下步骤操作：'
-                : '添加到主屏幕，即可获得全屏游戏体验',
-        iosChromeStep1: '① 点击右下角 ⋯ 菜单',
-        iosChromeStep2: '② 选择「在 Safari 中打开」',
-        iosStep1: '① 点击底部 Safari 分享按钮',
-        iosStep2: '② 选择「添加到主屏幕」',
-        install: '添加',
-        later: '知道了'
-    } : {
-        title: 'Fullscreen Experience',
-        description: isIOSChrome
-            ? 'Please open this page in Safari:'
-            : isIOS
-                ? 'Follow these steps:'
-                : 'Add to Home Screen for a fullscreen experience',
-        iosChromeStep1: '① Tap ⋯ menu (bottom right)',
-        iosChromeStep2: '② Select "Open in Safari"',
-        iosStep1: '① Tap Safari Share button below',
-        iosStep2: '② Select "Add to Home Screen"',
-        install: 'Install',
-        later: 'Got it'
+    // Choose the right description per platform — keys live in locales/{zh,en}.json under `pwa`.
+    const pwa = translations.pwa;
+    const description = isIOSChrome
+        ? pwa.descriptionIosChrome
+        : isIOS
+            ? pwa.descriptionIos
+            : pwa.description;
+
+    const textContent = {
+        title: pwa.title,
+        description,
+        iosChromeStep1: pwa.iosChromeStep1,
+        iosChromeStep2: pwa.iosChromeStep2,
+        iosStep1: pwa.iosStep1,
+        iosStep2: pwa.iosStep2,
+        install: pwa.install,
+        later: pwa.later
     };
 
     return (

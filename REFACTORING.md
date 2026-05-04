@@ -4,6 +4,32 @@
 
 ## 📅 时间线
 
+### 2026-05-04: 全面整改（架构 + 性能 + 测试）
+
+**完成的工作**：
+- ✅ Store 切片化：单体 `store.ts`（694 行）→ `store/{input,level,puzzle,wind,chewing,name,home,dialogue}Slice.ts` + `store/types.ts` + `store/index.ts`。`store.ts` 变成 5 行 barrel；外部 API 与现有所有 import 路径完全保持
+- ✅ App.tsx 拆分：396 行 → 113 行。抽出 `components/{CustomCursor,DynamicBackground,CameraController}.tsx` 和 `hooks/useLevelHotkeys.ts`
+- ✅ Zustand 订阅粒度收紧：移除所有 `const {...} = useGameStore()` 全 store 解构，改为 `useGameStore(s => s.x)` 或 `useShallow`，覆盖 Player/World/Puzzle/UI/CustomCursor
+- ✅ 修复 Rules of Hooks 违规：`WitheredLeafFeature` 抽出为独立组件（原先 hooks 在 `if (feature.type === 'WITHERED_LEAF')` 内调用）
+- ✅ Player 弹弓 ref 化：PROLOGUE 拖拽期间不再每帧 `setSlingshotVector()`，state 仅在拖拽进入/退出时切换
+- ✅ Puzzle 几何体 memo 化：`DraggingThread`/`BodyTether`/`Chapter6Connection` 的 Vector3/QuadraticBezierCurve3 缓存到 `useMemo` 依赖下；`SwayingHairBeam` getPoints 50→20
+- ✅ 关卡颜色集中：`constants/levelThemes.ts` 替代 App.tsx/UI.tsx/Player.tsx/World.tsx 四处分散的颜色表
+- ✅ EnvFeature 改判别联合：消除 `data?: any` 类型黑洞
+- ✅ setInterval 清理：`triggerRain` / `triggerHomeMelt` 启动 interval 后正确清理（防止 resetGame 后写入下一关）
+- ✅ ThreeEvent 类型：~13 处 `(e: any)` → `ThreeEvent<PointerEvent | MouseEvent>`
+- ✅ 死代码清理：删除未引用的 `nextDialogue`/`closeDialogue`、`vite.config.ts` 的 `GEMINI_API_KEY` define、`index.html` 的 importmap 块
+- ✅ i18n 完整化：`PWAInstallPrompt.tsx` 12 个硬编码 zh/en 字符串、`UI.tsx` 离线 tooltip、`World.tsx` 片段 fallback 全部迁移到 `locales/*.json`，新增 `pwa` 块和 `ui.offline` / `npc.fragmentFallback` keys。`Translations` interface 在 `locales/index.ts` 同步
+- ✅ Service Worker 修复：cache 版本 `v3`→`v4`，install 阶段 precache `/`、`/index.html`、manifest、`sun.mp3`，离线 navigation fallback 不再回退到空缓存
+- ✅ 构建优化：`framer-motion` 拆为独立 `vendor-framer-motion` chunk
+- ✅ Google Fonts preconnect 添加（省一个 RTT）
+- ✅ Manifest 图标 `purpose: "maskable"` → `"any maskable"`
+- ✅ `fiction.txt` 移到 `docs/fiction.txt`（IDE 索引污染移除）
+- ✅ 测试扩充：27 → 87 个测试，新增 `store-extra.test.ts`（16）、`i18n.test.tsx`（7）、`levelThemes.test.ts`（37）；setup.ts 增加 ResizeObserver / IntersectionObserver / navigator.onLine / webkitAudioContext mock
+
+**未做（已记 backlog）**：
+- favicon 4 个 PNG 实际是 1024×1024 JPEG 改名（约 1.4 MB 资产浪费），需用户用真 PNG 重导出 — 见本文末 backlog 段
+- `Player.tsx` 物理路径 / `utils/audio.ts` 的端到端测试覆盖（需要 r3f / Web Audio 集成 harness）
+
 ### 2025-12-25: Week 1-2 核心改进
 
 **完成的工作**：
@@ -115,9 +141,9 @@ NAME: {
 
 ---
 
-### App.tsx
+### components/CameraController.tsx
 
-相机和视觉相关的配置。
+相机和视觉相关的配置（2026-05-04 从 `App.tsx` 抽出）。
 
 #### `CAMERA_CONFIG`
 
@@ -345,11 +371,12 @@ git commit -m "visual: adjust WIND level camera for better view"
 
 | 想调整... | 文件 | 常量名 |
 |-----------|------|--------|
-| 移动手感 | Player.tsx | `PHYSICS_CONFIG` |
-| 关卡难度 | Player.tsx | `LEVEL_CONSTANTS` |
-| 相机位置 | App.tsx | `CAMERA_CONFIG` |
-| 移动端缩放 | App.tsx | `DEVICE_SCALE_FACTORS` |
-| 相机控制 | App.tsx | `CAMERA_CONTROLS` |
+| 移动手感 | components/Player.tsx | `PHYSICS_CONFIG` |
+| 关卡难度 | components/Player.tsx | `LEVEL_CONSTANTS` |
+| 相机位置 | components/CameraController.tsx | `CAMERA_CONFIG` |
+| 移动端缩放 | components/CameraController.tsx | `DEVICE_SCALE_FACTORS` |
+| 相机控制 | components/CameraController.tsx | `CAMERA_CONTROLS` |
+| 关卡配色 | constants/levelThemes.ts | `LEVEL_THEMES` |
 
 ---
 
@@ -382,3 +409,30 @@ A: 检查测试文件中的预期值是否需要更新以匹配新的配置。
 **维护者**: Claude Code Quality Team
 **最后更新**: 2025-12-25
 **版本**: 1.0
+
+---
+
+## Favicon backlog (manual re-export required)
+
+The four PNG icons under `favicon/` are **misnamed JPEGs**: each is a single
+1024×1024 baseline JPEG with a `.png` extension. Browsers tolerate this for
+classic favicons but it produces blurry/oversized PWA install icons and is a
+correctness bug regardless. This cannot be fixed by Claude Code — the PNGs
+need to be re-exported from the source artwork at the correct dimensions.
+
+Required re-exports (all true PNG, sRGB, no alpha for the maskable variants):
+
+| File                                       | Required size | Current actual              |
+| ------------------------------------------ | ------------- | --------------------------- |
+| `favicon/apple-touch-icon.png`             | 180×180 PNG   | 1024×1024 JPEG (mislabeled) |
+| `favicon/favicon-96x96.png`                | 96×96 PNG     | 1024×1024 JPEG (mislabeled) |
+| `favicon/web-app-manifest-192x192.png`     | 192×192 PNG   | 1024×1024 JPEG (mislabeled) |
+| `favicon/web-app-manifest-512x512.png`     | 512×512 PNG   | 1024×1024 JPEG (mislabeled) |
+
+After re-exporting, verify with `file favicon/*.png` — every line should read
+`PNG image data` with the matching width × height.
+
+Related fix already applied: `favicon/site.webmanifest` icon `purpose` was
+`"maskable"` only, which caused install-bar icons to be cropped on Android.
+It is now `"any maskable"`. If we later split into per-purpose entries, also
+ship a non-maskable variant with safe-zone padding removed.

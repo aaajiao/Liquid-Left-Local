@@ -68,16 +68,28 @@ npm run preview
 
 ```
 ├── components/        # React + Three.js components
-│   ├── Player.tsx    # Player physics and rendering
-│   ├── World.tsx     # Environment and level geometry
-│   ├── Puzzle.tsx    # Node system and connections
-│   └── UI.tsx        # 2D overlay UI
+│   ├── Player.tsx              # Player physics and rendering
+│   ├── World.tsx               # Environment and level geometry
+│   ├── Puzzle.tsx              # Node system and connections
+│   ├── UI.tsx                  # 2D overlay UI
+│   ├── CustomCursor.tsx        # Pointer-following cursor
+│   ├── DynamicBackground.tsx   # Scene background/fog lerp
+│   ├── CameraController.tsx    # Orthographic camera + OrbitControls
+│   ├── LanguageSwitcher.tsx
+│   └── PWAInstallPrompt.tsx
+├── store/            # Zustand slices (input/level/puzzle/wind/...)
+├── store.ts          # 5-line barrel re-exporting store/index.ts
+├── constants/        # Single-source-of-truth tables
+│   └── levelThemes.ts          # Per-level color tables
 ├── contexts/         # React Context providers
-├── locales/          # i18n translations (zh/en)
+│   └── I18nContext.tsx
+├── hooks/            # App-level hooks
+│   └── useLevelHotkeys.ts      # Dev-only 1..9 chapter jump
+├── locales/          # i18n translations (zh/en) + Translations interface
 ├── utils/            # Utility functions
 │   └── audio.ts      # Procedural audio synthesis
-├── store.ts          # Zustand game state
-├── App.tsx           # Main app and camera system
+├── App.tsx           # Top-level layout / Canvas mount
+├── docs/             # Reference material (e.g. fiction.txt)
 └── src/
     ├── __tests__/    # Unit and integration tests
     └── test/         # Test setup and mocks
@@ -101,7 +113,7 @@ npm run test:ui
 npm run test:coverage
 ```
 
-Current test coverage: **57.69%** (store.ts core logic)
+Current test count: **87 passing** across 4 files (store core + I18n + level themes + extra store actions).
 
 ### Configuration & Tuning
 
@@ -116,7 +128,7 @@ const PHYSICS_CONFIG = {
   DAMPING: 0.92            // Decrease for more inertia
 };
 
-// Adjust camera view (App.tsx)
+// Adjust camera view (components/CameraController.tsx)
 const CAMERA_CONFIG = {
   CHEWING: { offset: [10, 20, 10], baseZoom: 60 }  // Close-up view
 };

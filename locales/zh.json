@@ -86,7 +86,8 @@
         "meltIntoOne": "融为一体",
         "language": "语言",
         "chinese": "中文",
-        "english": "English"
+        "english": "English",
+        "offline": "离线模式"
     },
     "npc": {
         "witheredLeaf": {
@@ -97,6 +98,19 @@
             ],
             "healing": "好痛...但我不需要液体",
             "healthy": "谢谢你，很高兴认识你这滴液体！"
-        }
+        },
+        "fragmentFallback": "碎片"
+    },
+    "pwa": {
+        "title": "获得全屏体验",
+        "description": "添加到主屏幕，即可获得全屏游戏体验",
+        "descriptionIos": "请按以下步骤操作：",
+        "descriptionIosChrome": "请在 Safari 中打开此页面：",
+        "iosChromeStep1": "① 点击右下角 ⋯ 菜单",
+        "iosChromeStep2": "② 选择「在 Safari 中打开」",
+        "iosStep1": "① 点击底部 Safari 分享按钮",
+        "iosStep2": "② 选择「添加到主屏幕」",
+        "install": "添加",
+        "later": "知道了"
     }
 }

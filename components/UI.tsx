@@ -1,9 +1,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useGameStore, LevelType } from '../store';
+import { useShallow } from 'zustand/react/shallow';
+import { useGameStore } from '../store';
 import { AnimatePresence, motion } from 'framer-motion';
 import { resumeAudio, startAmbience } from '../utils/audio';
 import { useI18n } from '../contexts/I18nContext';
+import { LEVEL_THEMES } from '../constants/levelThemes';
 
 // Inline offline indicator for chapter title
 const useOnlineStatus = () => {
@@ -28,7 +30,14 @@ const useOnlineStatus = () => {
 };
 
 export const UI: React.FC = () => {
-  const { currentLevel, narrativeIndex, isLevelComplete, startLevel, resetGame, triggerHomeMelt } = useGameStore();
+  const { currentLevel, narrativeIndex, isLevelComplete, startLevel, resetGame, triggerHomeMelt } = useGameStore(useShallow(s => ({
+    currentLevel: s.currentLevel,
+    narrativeIndex: s.narrativeIndex,
+    isLevelComplete: s.isLevelComplete,
+    startLevel: s.startLevel,
+    resetGame: s.resetGame,
+    triggerHomeMelt: s.triggerHomeMelt,
+  })));
   const { translations, lang } = useI18n();
   const isOnline = useOnlineStatus();
 
@@ -116,7 +125,7 @@ export const UI: React.FC = () => {
                 animate={{ opacity: 0.6, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.3 }}
-                title={lang === 'zh' ? '离线模式' : 'Offline'}
+                title={translations.ui.offline}
               >
                 <svg
                   width={isLandscape ? 14 : 18}
@@ -162,19 +171,8 @@ export const UI: React.FC = () => {
             >
               {/* Narrative Text - Hover glow effect with chapter-specific colors */}
               {(() => {
-                // Chapter-specific glow colors
-                const glowColorMap: Record<string, string> = {
-                  PROLOGUE: 'rgba(255,228,225,0.9)',      // 淡粉
-                  LANGUAGE: 'rgba(255,240,245,0.9)',     // 薰衣草
-                  NAME: 'rgba(224,64,251,0.8)',           // 霓虹紫
-                  CHEWING: 'rgba(144,238,144,0.8)',       // 翠绿
-                  WIND: 'rgba(255,238,255,0.9)',          // 暖白粉
-                  TRAVEL: 'rgba(135,206,235,0.8)',        // 星光蓝
-                  CONNECTION: 'rgba(255,255,240,0.9)',    // 象牙白
-                  HOME: 'rgba(0,191,255,0.8)',            // 湖水蓝
-                  SUN: 'rgba(255,165,0,0.8)',             // 金橙
-                };
-                const glowColor = glowColorMap[currentLevel] || 'rgba(255,255,255,0.9)';
+                // Chapter-specific glow color (centralized in constants/levelThemes.ts)
+                const glowColor = LEVEL_THEMES[currentLevel]?.glow || 'rgba(255,255,255,0.9)';
 
                 return (
                   <motion.p

@@ -1,19 +1,14 @@
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+export default defineConfig(() => {
   return {
     server: {
       port: 3000,
       host: '0.0.0.0',
     },
     plugins: [react()],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
@@ -23,11 +18,17 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            // Only split Three.js - it has no React dependency and is the largest chunk
-            // All other React-dependent libraries (framer-motion, zustand, @react-three)
-            // must be bundled together to avoid initialization order issues
+            // Three.js: no React dependency, the largest chunk -> safe to split.
             if (id.includes('node_modules') && id.includes('/three/')) {
               return 'vendor-three';
+            }
+            // framer-motion: animation runtime, large, no React-context coupling
+            // with the rest of our vendor graph. Splitting it keeps the main
+            // bundle smaller without risking init-order issues.
+            // DO NOT split: react / zustand / @react-three — they share
+            // init order with the app entry and break when chunked.
+            if (id.includes('node_modules') && id.includes('/framer-motion/')) {
+              return 'vendor-framer-motion';
             }
           }
         }

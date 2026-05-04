@@ -24,28 +24,37 @@ npm run test:ui
 
 ```
 src/
-├── __tests__/          # 单元测试和集成测试
-│   └── store.test.ts   # Store核心逻辑测试
+├── __tests__/                    # 单元测试和集成测试
+│   ├── store.test.ts             # Store 核心逻辑（关卡机制、连接、咀嚼、风等）
+│   ├── store-extra.test.ts       # 之前未覆盖的 store action（fake timers）
+│   ├── i18n.test.tsx             # I18nProvider / useI18n
+│   └── levelThemes.test.ts       # constants/levelThemes.ts 的完整性检查
 └── test/
-    └── setup.ts        # 测试环境配置和Mock
+    └── setup.ts                  # 测试环境配置和 Mock
 ```
 
 ### Mock配置
 
-测试环境已配置以下Mock：
+测试环境已配置以下 Mock（`src/test/setup.ts`）：
 
-- **Web Audio API**: 完整的AudioContext mock，支持所有音频操作
+- **Web Audio API**: 完整的 `AudioContext` + `webkitAudioContext` alias，支持所有音频操作
 - **matchMedia**: 响应式设计测试支持
-- **visualViewport**: 移动端viewport测试支持
+- **visualViewport**: 移动端 viewport 测试支持
+- **ResizeObserver / IntersectionObserver**: Framer Motion 等库需要
+- **navigator.onLine**: 默认 true，UI 离线指示器测试可覆盖
 
 ## 当前测试覆盖率
 
 ```
-Overall Coverage: 17.1%
+Test Files: 4 passed
+Tests: 87 passed
 
-Core Module Coverage:
-- store.ts: 57.69%  ✅ (关卡逻辑、状态管理)
-- audio.ts: 7.82%   ⚠️  (需要改进)
+Core Module Coverage（覆盖关键路径，非穷尽）:
+- store/*.ts: 关卡链 + 9 个 action 直接覆盖（含 fake-timer 驱动的 triggerRain / triggerHomeMelt）
+- contexts/I18nContext.tsx: 7 个测试，含 localStorage 持久化与 missing-key fallback
+- constants/levelThemes.ts: 9 个 LevelType × 4 个字段穷举
+- utils/audio.ts: 7.82%   ⚠️  (集成测试 backlog)
+- components/Player.tsx: 0%  ⚠️  (需要 r3f harness — backlog)
 ```
 
 ## 编写新测试
@@ -200,11 +209,14 @@ jobs:
 
 ## 下一步计划
 
-- [ ] 提升audio.ts测试覆盖率到>50%
-- [ ] 添加Player组件集成测试
-- [ ] 添加World组件测试
-- [ ] E2E测试（使用Playwright）
-- [ ] 性能测试（FPS监控）
+- [x] I18nContext 单元测试（2026-05-04 完成）
+- [x] levelThemes 完整性测试（2026-05-04 完成）
+- [x] store 之前未覆盖的 action 测试（fake timers）（2026-05-04 完成）
+- [ ] 提升 audio.ts 测试覆盖率到 >50%
+- [ ] 添加 Player 组件集成测试（需要 r3f test harness）
+- [ ] 添加 World 组件测试
+- [ ] E2E 测试（使用 Playwright）
+- [ ] 性能测试（FPS 监控）
 
 ## 参考资源
 
